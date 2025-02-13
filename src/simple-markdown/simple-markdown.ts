@@ -28,6 +28,7 @@ type Attr = string | number | boolean | null | undefined
 
 type SingleASTNode = {
     type: string
+    pos: [number, number]
     [key: string]: any
 }
 
@@ -42,7 +43,8 @@ type ReactElements = React.ReactNode
 
 type Parser = (
     source: string,
-    state?: State | null | undefined
+    state: State,
+    upperCapture: Capture | null
 ) => Array<SingleASTNode>
 
 type ParseFunction = (
@@ -169,9 +171,8 @@ type NonNullHtmlOutputRule = {
 }
 
 type DefaultInRule = SingleNodeParserRule & ReactOutputRule & HtmlOutputRule
-type TextInOutRule = SingleNodeParserRule &
-    TextReactOutputRule &
-    NonNullHtmlOutputRule
+//type TextInOutRule = SingleNodeParserRule & TextReactOutputRule & NonNullHtmlOutputRule
+type TextInOutRule = DefaultInRule
 type LenientInOutRule = SingleNodeParserRule &
     NonNullReactOutputRule &
     NonNullHtmlOutputRule
@@ -232,10 +233,8 @@ var FORMFEED_R = /\f/g
  * Turn various whitespace into easy-to-process whitespace
  */
 var preprocess = function (source: string): string {
-    return source
-        .replace(CR_NEWLINE_R, "\n")
-        .replace(FORMFEED_R, "")
-        .replace(TAB_R, "    ")
+    return source.replace(CR_NEWLINE_R, "\n").replace(FORMFEED_R, "")
+    //.replace(TAB_R, "    ")
 }
 
 var populateInitialState = function (
@@ -253,8 +252,19 @@ var populateInitialState = function (
     return state
 }
 
-const getPos = (str_all: string, str_target: string): Number => {
+const getPos = (str_all: string, str_target: string): number => {
     return str_all.indexOf(str_target)
+}
+
+const shiftGlobalPosition = (
+    state: State,
+    shift: number,
+    allowMinus = false
+) => {
+    if (shift >= 0 || allowMinus) {
+        state.posGlobal += shift
+    }
+    return state.posGlobal
 }
 
 /**
@@ -334,11 +344,24 @@ var parserFor = function (
     var latestState: State
     var nestedParse: Parser = function (
         source: string,
-        state?: State | null
+        state: State,
+        upperCapture: Capture | null
     ): Array<SingleASTNode> {
-        var result: Array<SingleASTNode> = []
+        var parsedReault: Array<SingleASTNode> = []
         state = state || latestState
-        latestState = state
+        latestState = Object.assign({}, state)
+        let posLocal = 0
+        const upperPosOffset = upperCapture
+            ? upperCapture[0].indexOf(source)
+            : 0
+        shiftGlobalPosition(state, upperPosOffset)
+        console.log(
+            `upperPosOffset:${upperPosOffset}
+--------
+${(upperCapture || [""])[0]}
+--------
+${source}`
+        )
         while (source) {
             // store the best match, it's rule, and quality:
             var ruleType = ""
@@ -413,24 +436,51 @@ var parserFor = function (
                         "start of the RegExp?"
                 )
             }
-            console.log(`MATCHED!(${ruleType})`, capture)
-            const sourceLocal = capture[0]
+            //仕様上、captureは必ずsourceの先頭でマッチ。
+            //capture[0]はルールで使う文字の範囲の全体を指す。
+            //どれだけ文字を消費するかはcapture[0]の長さで判断。
+            const sourceCaptured = capture[0]
+            const biteStringLength = sourceCaptured.length
+            console.log(
+                `${" ".repeat(state.nestLevel * 2)}MATCHED!(${ruleType})
+${sourceCaptured}
+<<gPos:  ${state.posGlobal},  lPos:  ${posLocal} >>
+state:${state}
+source:${source}
+capture:${capture}
+biteStringLength:${biteStringLength}`
+            )
 
             //////////////// parse phase ////////////////
-            const nestedParseWrap = (source: string, state?: State | null) => {
-                console.log(`~~>nestedParseWrap(called in ${ruleType})`)
-                console.log("source::", source)
-                console.log("state::", state)
-                const res = nestedParse(source, state)
-                console.log(`<~~nestedParseWrap(called in ${ruleType})`)
-                console.log("res::", Object.assign({}, res))
-                console.log("source::", source)
-                console.log("state::", state)
+            const innerNestedParse: Parser = (
+                callerSource: string,
+                callerState: State,
+                upperCapture: Capture | null
+            ) => {
+                console.log(
+                    `${" ".repeat(
+                        callerState.nestLevel * 2
+                    )}innerNestedParse from ${ruleType}[lvUP:${
+                        state.nestLevel
+                    }]`,
+                    callerSource,
+                    callerState
+                )
+                callerState.nestLevel += 1
+                const calleeState = Object.assign({}, callerState)
+                //calleeState.posGlobal += biteStringLength
+                const res = nestedParse(callerSource, calleeState, upperCapture)
+                callerState.nestLevel -= 1
                 return res
             }
             //return [AST]
-            state.sourceLocal = sourceLocal
-            var parsed = rule.parse(capture, nestedParseWrap, state)
+            const newState = Object.assign({}, state)
+            newState.posGlobal += posLocal
+            console.log(
+                `${" ".repeat(state.nestLevel * 2)}rule.parse(${ruleType})`
+            )
+            console.log()
+            var parsed = rule.parse(capture, innerNestedParse, newState)
 
             //////////////// save result phase ////////////////
 
@@ -438,10 +488,11 @@ var parserFor = function (
             // store references to the objects they return and
             // modify them later. (oops sorry! but this adds a lot
             // of power--see reflinks.)
-            if (Array.isArray(parsed)) {
-                Array.prototype.push.apply(result, parsed)
-            } else {
-                if (parsed == null || typeof parsed !== "object") {
+            if (!Array.isArray(parsed)) {
+                parsed = [parsed]
+            }
+            ;(parsed as [SingleASTNode]).forEach((p: SingleASTNode) => {
+                if (p == null || typeof p !== "object") {
                     throw new Error(
                         `parse() function returned invalid parse result: '${parsed}'`
                     )
@@ -451,17 +502,28 @@ var parserFor = function (
                 // their parsed node if they would like to, so that
                 // there can be a single output function for all links,
                 // even if there are several rules to parse them.
-                if (parsed.type == null) {
-                    parsed.type = ruleType
+                if (p.type == null) {
+                    p.type = ruleType
                 }
-                result.push(parsed)
-            }
+                p.pos = [
+                    state.posGlobal + posLocal,
+                    state.posGlobal + posLocal + biteStringLength,
+                ]
+                parsedReault.push(p)
+            })
+            console.log(
+                `${" ".repeat(state.nestLevel * 2)}result.push(${ruleType})`,
+                parsedReault[parsedReault.length - 1],
+                parsedReault[parsedReault.length - 1].pos
+            )
 
             state.prevCapture = capture
-            source = source.substring(state.prevCapture[0].length)
+            source = source.substring(biteStringLength)
+            posLocal += biteStringLength
         }
+        state.posGlobal += posLocal
 
-        return result
+        return parsedReault
     }
 
     var outerParse: Parser = function (
@@ -478,7 +540,10 @@ var parserFor = function (
         // text (see the list rule for more information). This stores
         // the full regex capture object, if there is one.
         latestState.prevCapture = null
-        return nestedParse(preprocess(source), latestState)
+        latestState.sourceAll = source
+        latestState.posGlobal = 0
+        latestState.nestLevel = 0
+        return nestedParse(preprocess(source), latestState, null)
     }
 
     return outerParse
@@ -541,7 +606,7 @@ var reactElement = function (
     var element: ReactElement = {
         $$typeof: TYPE_SYMBOL,
         type: type,
-        key: key == null ? undefined : key,
+        key: undefined, //key == null ? undefined : key,
         ref: null,
         props: props,
         _owner: null,
@@ -646,11 +711,12 @@ var unescapeUrl = function (rawUrlString: string): string {
 var parseInline = function (
     parse: Parser,
     content: string,
-    state: State
+    state: State,
+    capture: Capture | null
 ): ASTNode {
     var isCurrentlyInline = state.inline || false
     state.inline = true
-    var result = parse(content, state)
+    var result = parse(content, state, capture)
     state.inline = isCurrentlyInline
     return result
 }
@@ -658,11 +724,12 @@ var parseInline = function (
 var parseBlock = function (
     parse: Parser,
     content: string,
-    state: State
+    state: State,
+    capture: Capture | null
 ): ASTNode {
     var isCurrentlyInline = state.inline || false
     state.inline = false
-    var result = parse(content + "\n\n", state)
+    var result = parse(content + "\n\n", state, capture)
     state.inline = isCurrentlyInline
     return result
 }
@@ -675,7 +742,7 @@ var parseCaptureInline = function (
     const param = Object.assign({}, { capture, parse, state })
     console.debug("----captured by parseCaptureInline ----", param)
     return {
-        content: parseInline(parse, capture[1], state),
+        content: parseInline(parse, capture[1], state, capture),
     }
 }
 
@@ -685,7 +752,7 @@ var ignoreCapture = function (): UnTypedASTNode {
 
 // recognize a `*` `-`, `+`, `1.`, `2.`... list bullet
 var LIST_BULLET = "(?:[*+-]|\\d+\\.)"
-const LIST_HEAD = "[ \t]*"
+const LIST_HEAD = "[ ]*" //"[ \t]*"
 // recognize the start of a list item:
 // leading space plus a bullet plus a space (`   * `)
 var LIST_ITEM_PREFIX = "(" + LIST_HEAD + ")(" + LIST_BULLET + ") +"
@@ -774,11 +841,12 @@ var TABLES = (function () {
         source: string,
         parse: Parser,
         state: State,
+        capture: Capture | null,
         trimEndSeparators: boolean
     ): Array<Array<SingleASTNode>> {
         var prevInTable = state.inTable
         state.inTable = true
-        var tableRow = parse(source.trim(), state)
+        var tableRow = parse(source.trim(), state, capture)
         state.inTable = prevInTable
 
         var cells = [[]]
@@ -819,12 +887,19 @@ var TABLES = (function () {
         source: string,
         parse: Parser,
         state: State,
+        capture: Capture | null,
         trimEndSeparators: boolean
     ): Array<Array<ASTNode>> {
         var rowsText = source.trim().split("\n")
 
         return rowsText.map(function (rowText) {
-            return parseTableRow(rowText, parse, state, trimEndSeparators)
+            return parseTableRow(
+                rowText,
+                parse,
+                state,
+                capture,
+                trimEndSeparators
+            )
         })
     }
 
@@ -839,6 +914,7 @@ var TABLES = (function () {
                 capture[1],
                 parse,
                 state,
+                capture,
                 trimEndSeparators
             )
             var align = parseTableAlign(
@@ -851,6 +927,7 @@ var TABLES = (function () {
                 capture[3],
                 parse,
                 state,
+                capture,
                 trimEndSeparators
             )
             state.inline = false
@@ -930,7 +1007,8 @@ var defaultRules: DefaultRules = {
 
                 var node = arr[i]
                 if (node.type === "text") {
-                    node = { type: "text", content: node.content }
+                    //node = { type: "text", content: node.content }
+                    node = { ...node, type: "text" }
                     for (
                         ;
                         i + 1 < arr.length && arr[i + 1].type === "text";
@@ -954,7 +1032,8 @@ var defaultRules: DefaultRules = {
             for (var i = 0; i < arr.length; i++) {
                 var node = arr[i]
                 if (node.type === "text") {
-                    node = { type: "text", content: node.content }
+                    //node = { type: "text", content: node.content }
+                    node = { ...node, type: "text" }
                     for (
                         ;
                         i + 1 < arr.length && arr[i + 1].type === "text";
@@ -977,7 +1056,12 @@ var defaultRules: DefaultRules = {
             console.debug("----captured by heading ----", param)
             return {
                 level: capture[1].length,
-                content: parseInline(nestedParse, capture[2].trim(), state),
+                content: parseInline(
+                    nestedParse,
+                    capture[2].trim(),
+                    state,
+                    capture
+                ),
             }
         },
         react: function (node, output, state) {
@@ -1005,7 +1089,7 @@ var defaultRules: DefaultRules = {
             return {
                 type: "heading",
                 level: capture[2] === "=" ? 1 : 2,
-                content: parseInline(nestedParse, capture[1], state),
+                content: parseInline(nestedParse, capture[1], state, capture),
             }
         },
         react: null,
@@ -1078,7 +1162,7 @@ var defaultRules: DefaultRules = {
             console.debug("----captured by ###----", param)
             var content = capture[0].replace(/^ *> ?/gm, "")
             return {
-                content: nestedParse(content, state),
+                content: nestedParse(content, state, capture),
             }
         },
         react: function (node, output, state) {
@@ -1131,10 +1215,14 @@ var defaultRules: DefaultRules = {
             var itemContent = items.map(function (item: string, i: number) {
                 // We need to see how far indented this item is:
                 var prefixCapture = LIST_ITEM_PREFIX_R.exec(item)
-                var space = prefixCapture ? prefixCapture[0].length : 0
+                //var space = prefixCapture ? prefixCapture[0].length : 0
+                var space = prefixCapture ? prefixCapture[1].length : 0
                 // And then we construct a regex to "unindent" the subsequent
                 // lines of the items by that amount:
-                var spaceRegex = new RegExp("^ {1," + space + "}", "gm")
+                var spaceRegex =
+                    space > 0
+                        ? new RegExp("^ {" + space + "}", "")
+                        : new RegExp("")
 
                 // Before processing the item, we need a couple things
                 var content = item
@@ -1183,7 +1271,33 @@ var defaultRules: DefaultRules = {
                     adjustedContent = content.replace(LIST_ITEM_END_R, "")
                 }
 
-                var result = nestedParse(adjustedContent, state)
+                //
+                /*
+                const shift = item.indexOf(adjustedContent)
+                shiftGlobalPosition(state, shift)
+
+                console.log(
+                    "list.parse.item:\n",
+                    "<shift>",
+                    shift,
+                    "<bf>\n",
+                    item,
+                    "<aft>\n",
+                    adjustedContent
+                )
+                    */
+                //
+                console.log({
+                    item,
+                    space,
+                    content,
+                    adjustedContent,
+                    capture,
+                    prefixCapture,
+                    spaceRegex,
+                })
+
+                var result = nestedParse(adjustedContent, state, capture)
 
                 // Restore our state before returning
                 state.inline = oldStateInline
@@ -1515,7 +1629,7 @@ var defaultRules: DefaultRules = {
             const param = Object.assign({}, { capture, nestedParse, state })
             console.debug("----captured by link ----", param)
             var link = {
-                content: nestedParse(capture[1], state),
+                content: nestedParse(capture[1], state, capture),
                 target: unescapeUrl(capture[2]),
                 title: capture[3],
             }
@@ -1588,7 +1702,7 @@ var defaultRules: DefaultRules = {
             console.debug("----captured by reflink ----", param)
             return parseRef(capture, state, {
                 type: "link",
-                content: nestedParse(capture[1], state),
+                content: nestedParse(capture[1], state, capture),
             })
         },
         react: null,
@@ -1654,8 +1768,15 @@ var defaultRules: DefaultRules = {
         parse: function (capture, nestedParse, state) {
             const param = Object.assign({}, { capture, nestedParse, state })
             console.debug("----captured by em ----", param)
+            //
+            const nestedSource = capture[2] || capture[1]
+            /*
+            const shift = capture[0].indexOf(nestedSource)
+            shiftGlobalPosition(state, shift)
+            */
+            //
             return {
-                content: nestedParse(capture[2] || capture[1], state),
+                content: nestedParse(nestedSource, state, capture),
             }
         },
         react: function (node, output, state) {
@@ -1755,8 +1876,9 @@ var defaultRules: DefaultRules = {
         // double newlines, or double-space-newlines
         // We break on any symbol characters so that this grammar
         // is easy to extend without needing to modify this regex
+        //orig    /^[\s\S]+?(?=[^0-9A-Za-z\s\u00c0-\uffff]|\n\n| {2,}\n|\w+:\S|$)/
         match: anyScopeRegex(
-            /^[\s\S]+?(?=[^0-9A-Za-z\s\u00c0-\uffff]|\n\n| {2,}\n|\w+:\S|$)/
+            /^[\s\S]+?(?=\s*(?=[^0-9A-Za-z\s\u00c0-\uffff]|\n\n| {2,}\n|\w+:\S|$))/
         ),
         parse: function (capture, nestedParse, state) {
             const param = Object.assign({}, { capture, nestedParse, state })
@@ -1766,7 +1888,11 @@ var defaultRules: DefaultRules = {
             }
         },
         react: function (node, output, state) {
-            return node.content
+            return reactElement("span", state.key, {
+                children: node.content,
+                className: "previewText",
+                "data-pos": node.pos,
+            })
         },
         html: function (node, output, state) {
             return sanitizeText(node.content)
@@ -1891,7 +2017,12 @@ var outputFor = function <Rule>(
         } else {
             // @ts-expect-error - TS2349 - This expression is not callable.
             //   Type 'unknown' has no call signatures.
-            return rules[ast.type][property](ast, nestedOutput, state)
+            let reactnode: ReactElement = rules[ast.type][property](
+                ast,
+                nestedOutput,
+                state
+            )
+            return reactnode
         }
     }
 
@@ -1907,30 +2038,33 @@ var defaultRawParse = parserFor(defaultRules)
 
 var defaultBlockParse = function (
     source: string,
-    state?: State | null
+    state?: State | null,
+    capture?: Capture | null
 ): Array<SingleASTNode> {
     state = state || {}
     state.inline = false
-    return defaultRawParse(source, state)
+    return defaultRawParse(source, state, capture || null)
 }
 
 var defaultInlineParse = function (
     source: string,
-    state?: State | null
+    state?: State | null,
+    capture?: Capture | null
 ): Array<SingleASTNode> {
     state = state || {}
     state.inline = true
-    return defaultRawParse(source, state)
+    return defaultRawParse(source, state, capture || null)
 }
 
 var defaultImplicitParse = function (
     source: string,
-    state?: State | null
+    state?: State | null,
+    capture?: Capture | null
 ): Array<SingleASTNode> {
     var isBlock = BLOCK_END_R.test(source)
     state = state || {}
     state.inline = !isBlock
-    return defaultRawParse(source, state)
+    return defaultRawParse(source, state, capture || null)
 }
 
 var defaultReactOutput: ReactOutput = outputFor(defaultRules, "react")
@@ -1988,12 +2122,14 @@ type Exports = {
     readonly parseInline: (
         parse: Parser,
         content: string,
-        state: State
+        state: State,
+        capture: Capture | null
     ) => ASTNode
     readonly parseBlock: (
         parse: Parser,
         content: string,
-        state: State
+        state: State,
+        capture: Capture | null
     ) => ASTNode
     readonly markdownToReact: (
         source: string,
@@ -2009,7 +2145,8 @@ type Exports = {
     }) => ReactElement
     readonly defaultRawParse: (
         source: string,
-        state?: State | null | undefined
+        state: State,
+        capture: Capture | null
     ) => Array<SingleASTNode>
     readonly defaultBlockParse: (
         source: string,
@@ -2089,6 +2226,11 @@ export type {
     ReactRules,
     HtmlRules,
     SingleASTNode,
+
+    //
+    DefaultInOutRule,
+    DefaultInRule,
+    TextInOutRule,
 }
 
 var SimpleMarkdown: Exports = {

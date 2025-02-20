@@ -1,22 +1,33 @@
-/*
-li.checkbox-list::marker {
-    content: "☐ ";
-}
-li.checkbox-list.checkbox-list-selected {
-    list-style-type: "\1F44D";
-    text-align: center;
+:root {
+    --editor-li-marker-width: 1.5em;
 }
 
-*/
 #root_ * {
     font-size: 20px;
 }
 
+/* list general */
 ul,
 ol {
-    padding-inline-start: 1.5em;
+    padding-inline-start: 0.5em;
     width: fit-content;
 }
+ul ul {
+    padding-inline-start: 1.5em;
+}
+ol ol {
+    padding-inline-start: 1.5em;
+}
+li:before {
+    content: "";
+    display: inline-block;
+    text-align: center;
+    vertical-align: baseline;
+    width: var(--editor-li-marker-width) !important;
+    height: auto;
+    padding-right: 0.5em;
+}
+/* ordered list */
 ol {
     counter-reset: olnumber;
     list-style: none;
@@ -28,35 +39,62 @@ li {
 ol > li:before {
     content: counter(olnumber) ". ";
     counter-increment: olnumber;
+    /*
     display: inline-block;
     text-align: center;
     vertical-align: baseline;
     width: 2em;
     height: auto;
+    */
 }
 
+/* other list */
 ul {
     list-style: none;
 }
+/* normal list */
 ul > li:before {
     content: "●";
+    transform: scale(0.55, 0.55);
+    /*
     display: inline-block;
     text-align: center;
     vertical-align: baseline;
-    transform: scale(0.6, 0.6);
-    width: 2em;
+    width: var(--editor-li-marker-width);
     height: auto;
+    padding-right: 0.5em;
+    */
 }
+/* task list */
 ul > li.task-list-item-checkbox:before {
     content: "□";
+    transform: scale(1.2, 1.2);
+    /*
     display: inline-block;
     text-align: center;
     vertical-align: baseline;
-    transform: scale(1.2, 1.2);
-    width: 2em;
+    width: var(--editor-li-marker-width);
     height: auto;
+    */
 }
-
 ul > li.task-list-item-checkbox.checked:before {
     content: "☑";
 }
+/* quote list */
+ul > li.quote-list {
+    color: darkblue;
+    text-indent: calc(-0.5 * var(--editor-li-marker-width));
+}
+ul > li.quote-list:before {
+    content: "";
+    transform: scale(0.6, 0.6);
+    /*
+    display: inline-block;
+    text-align: center;
+    vertical-align: baseline;
+    width: var(--editor-li-marker-width);
+    height: auto;
+    */
+}
+
+/**/

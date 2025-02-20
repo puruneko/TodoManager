@@ -23,22 +23,58 @@ fork for parse processing.
         -   [ ] textarea で OK なのか？（コンテキストメニューとか出せるか？）
         -   [ ] ほかのエディタ OSS も触ってみる
         -   [WIP] monaco を使ってみる。できるか確かめる
-            -   [ ] text selection
+            -   [x] text selection
+                -   mdPos<->monaca.positionAt で変換
             -   [ ] scroll sync
-            -   [ ] 動作の軽さ
-            -   [ ] bundle size
+            -   [x] 動作の軽さ
+                -   ->とりあえず OK
+            -   [x] bundle size
+                -   ->とりあえず OK（monaca+今の構成こみこみで約 200kB）
     -   タスク関連
+        -   [ ] タスクの階層化のルールを作る
         -   [ ] タスクの抽出機能
         -   [ ] タスクの階層構造化
-    -   バグ関連
-        -   [ ] state.parseNumber を key とした react.key がおかしい
-        -   [ ] App.ts 側の RuleType のエラー解消
+    -   [ ] 対応していない記法の実装
+
+-   バグ関連
+
+    -   [ ] state.parseNumber を key とした react.key がおかしい
+    -   [ ] App.ts 側の RuleType のエラー解消
+
+-   改善関連
+
+    -   [ ] list パース実装の一般化
 
 -   aaa
     -   bbb
     1. aaaa
     -   ccc
     -   ddd
+
+# changed settings
+
+## tsconfig
+
+-   "noUnusedLocals": false,
+-   "noUnusedParameters": false,
+
+## eslint.config.js
+
+`js
+rules: {
+            ...reactHooks.configs.recommended.rules,
+            "react-refresh/only-export-components": [
+                "warn",
+                { allowConstantExport: true },
+            ],
+            "@typescript-eslint/no-unused-vars": "warn",
+            //"@typescript-eslint/ban-ts-comment": "allow-with-description"
+        },
+`
+
+## .vscode/launch.json
+
+## .vscode/tasks.json
 
 # React + TypeScript + Vite
 

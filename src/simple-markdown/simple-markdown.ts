@@ -784,18 +784,22 @@ var ignoreCapture = function (): UnTypedASTNode {
 const NORMAL_LIST_BULLET = "[*+-]"
 const ORDERED_LIST_BULLET = "\\d+\\."
 const TASK_LIST_BULLET = "\\[[^\\[\\]]+?\\]"
+const QUOTE_LIST_BULLET = "[>]"
 const NORMAL_WITH_TASK_LIST_BULLET = `${NORMAL_LIST_BULLET}(?: +${TASK_LIST_BULLET})?`
-var LIST_BULLETS = `(?:${NORMAL_WITH_TASK_LIST_BULLET}|${ORDERED_LIST_BULLET})`
+var LIST_BULLETS = `(?:${NORMAL_WITH_TASK_LIST_BULLET}|${ORDERED_LIST_BULLET}|${QUOTE_LIST_BULLET})`
 const IS_NORMAL_LIST_R = new RegExp(NORMAL_LIST_BULLET)
 const IS_ORDERED_LIST_R = new RegExp(ORDERED_LIST_BULLET)
 const IS_TASK_LIST_R = new RegExp(`.*?${TASK_LIST_BULLET}`)
-type ListType = "" | "normal" | "ordered" | "task"
+const IS_QUOTE_LIST_R = new RegExp(`.*?${QUOTE_LIST_BULLET}`)
+type ListType = "" | "normal" | "ordered" | "task" | "quote"
 const getListType = (bullet: string): ListType => {
     let listType: ListType = ""
     if (!!IS_TASK_LIST_R.exec(bullet)) {
         listType = "task"
     } else if (!!IS_ORDERED_LIST_R.exec(bullet)) {
         listType = "ordered"
+    } else if (!!IS_QUOTE_LIST_R.exec(bullet)) {
+        listType = "quote"
     } else if (!!IS_NORMAL_LIST_R.exec(bullet)) {
         listType = "normal"
     }
@@ -1096,7 +1100,7 @@ const default_ArrayRule: DefaultRules["Array"] = {
 }
 const default_headingRule: DefaultRules["heading"] = {
     order: currOrder++,
-    match: blockRegex(/^ *(#{1,6})([^\n]+?)#* *(?:\n *)+\n/),
+    match: blockRegex(/^ *(#{1,6})([^\n]+?)#* *(?:\n *)+\n?/),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
         return {
@@ -1127,7 +1131,7 @@ const default_nptableRule: DefaultRules["nptable"] = {
 }
 const default_lheadingRule: DefaultRules["lheading"] = {
     order: currOrder++,
-    match: blockRegex(/^([^\n]+)\n *(=|-){3,} *(?:\n *)+\n/),
+    match: blockRegex(/^([^\n]+)\n *(=|-){3,} *(?:\n *)+\n?/),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
         return {
@@ -1209,6 +1213,7 @@ const default_blockQuoteRule: DefaultRules["blockQuote"] = {
     react: function (node, output, state) {
         return reactElement("blockquote", state.key, {
             children: output(node.content, state),
+            style: { color: "yellow" },
         })
     },
     html: function (node, output, state) {
@@ -1400,7 +1405,8 @@ const default_listRule: DefaultRules["list"] = {
             else if (itemListType === "task") {
                 const checkboxFunc = (e: React.MouseEvent) => {
                     e.preventDefault()
-                    e.target.classList.toggle("checked")
+                    const _elem = e.target as HTMLElement
+                    _elem.classList.toggle("checked")
                     e.stopPropagation()
                 }
                 const taskStatus =
@@ -1411,8 +1417,19 @@ const default_listRule: DefaultRules["list"] = {
                     "data-pos": itemContent.pos,
                     children: output(itemContent.itemNodes, state),
                 })
+            } else if (itemListType === "quote") {
+                elem = reactElement("li", `${state.key}.${i}`, {
+                    className: "quote-list",
+                    "data-pos": itemContent.pos,
+                    children: reactElement("code", `${state.key}.${i}`, {
+                        "data-pos": itemContent.pos,
+                        children: output(itemContent.itemNodes, state),
+                    }),
+                })
             }
+            //
             //update
+            //
             if (itemListType !== prevListType) {
                 wrapperGroups.push(
                     Object.assign(
@@ -2364,6 +2381,7 @@ export type {
     SingleASTNode,
 
     //
+    DefaultRules,
     DefaultInOutRule,
     DefaultInRule,
     TextInOutRule,

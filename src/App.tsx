@@ -11,6 +11,7 @@ import * as monaco from "monaco-editor"
 
 //https://www.measurethat.net/Benchmarks/Show/25816/0/markdown-performance-comparison-2023-06-23-2
 import { textBench } from "./sampleText"
+import { textTask } from "./sampleText2"
 
 //
 type ParserAndOutputRule = SMD.ParserRule &
@@ -52,12 +53,13 @@ function App() {
     qqqqqqqq
     `
     //
-    const defaultValue = textBench
+    const defaultValue = textTask
     const [text, setText] = useState(defaultValue)
     const [Preview, setPreview] = useState(<></>)
-    const textareaRef = useRef<monaco.editor.IStandaloneCodeEditor>(null)
+    const textareaRef = useRef<any>()
+    const previewWrapperRef = useRef<any>()
 
-    let underlineRule: ParserAndOutputRule = {
+    let underlineRule: SMD.DefaultRules["em"] = {
         // Specify the order in which this rule is to be run
         order: SimpleMarkdown.defaultRules.em.order - 0.5,
 
@@ -92,7 +94,7 @@ function App() {
         },
     }
     //
-    let tagRule: ParserAndOutputRule = {
+    let tagRule: SMD.DefaultRules["em"] = {
         // Specify the order in which this rule is to be run
         order: SimpleMarkdown.defaultRules.em.order - 0.5,
 
@@ -133,27 +135,25 @@ function App() {
             return "<u>" + output(node.content) + "</u>"
         },
     }
-    let quateRule: ParserAndOutputRule = {
+    let lineQuoteRule: SMD.DefaultRules["em"] = {
         order: SimpleMarkdown.defaultRules.paragraph.order,
         match: function (source, state, prevCaptureStr) {
-            const res = /^ *([>]) *([^\n]+) */.exec(source)
-            console.debug("quateRule.match:", res)
+            const res = /^aaa( *?)[>] *?([^\n]+) */.exec(source)
             return res
         },
         parse: function (capture, nestedParse, state) {
             const param = Object.assign({}, { capture, nestedParse, state })
             console.debug("----captured by quate ----", param)
             return {
-                content: SimpleMarkdown.parseBlock(
-                    nestedParse,
-                    capture[2].trim(),
+                content: nestedParse(
+                    `${capture[1]}${capture[2].trim()}`,
                     state,
                     capture
                 ),
             }
         },
         react: function (node, output, state) {
-            return SimpleMarkdown.reactElement("span", state.key, {
+            return SimpleMarkdown.reactElement("span", "", {
                 children: output(node.content, state),
                 style: { color: "orange" },
             })
@@ -167,14 +167,17 @@ function App() {
         ...SimpleMarkdown.defaultRules,
         underline: underlineRule,
         tag: tagRule,
-        quate: quateRule,
+        lineQuote: lineQuoteRule,
     }
-    var rawBuiltParser = SimpleMarkdown.defaultBlockParse //SimpleMarkdown.parserFor(rules)
+    var rawBuiltParser = (source: string, state: any) => {
+        return SimpleMarkdown.parserFor(rules)(source, state, null)
+        //return SimpleMarkdown.defaultBlockParse(source, state)
+    }
     //
     const parseRef = useRef(rawBuiltParser)
     parseRef.current = function (source, state) {
         var blockSource = source + "\n\n"
-        return rawBuiltParser(blockSource, { inline: false }, null)
+        return rawBuiltParser(blockSource, { inline: false })
     }
     // You probably only need one of these: choose depending on
     // whether you want react nodes or an html string:
@@ -187,27 +190,42 @@ function App() {
         return outputAsReact(syntaxTree)
     }
     //
+    //
     useEffect(() => {
         console.log("--------text changed-------")
         console.log("  >>>parsing...")
-        const syntaxTree = parseRef.current(text, { inline: false }, null)
+        const syntaxTree = parseRef.current(text, { inline: false })
         console.log("  <<<parsing END")
         console.log("  >>>outputting...")
         const rOutput = outputAsReactRef.current(syntaxTree)
         console.log("  <<<outputting END")
         console.log("--------text changed result:-------")
-        console.log(text)
-        console.log(syntaxTree)
-        console.log(rOutput)
+        //console.log(text)
+        //console.log(syntaxTree)
+        //console.log(rOutput)
         setPreview(rOutput)
         console.log("--------text changed END-------")
     }, [text])
     //
+    const handlePreviewDidScrollChange = (e: any) => {
+        const _elem = e.target as HTMLElement
+        console.debug(
+            "handlePreviewDidScrollChange",
+            _elem.scrollTop,
+            _elem.offsetTop,
+            _elem.clientTop
+        )
+    }
+    //
+    const handleMonacoDidScrollChange = (e: monaco.IScrollEvent) => {
+        console.log("handleMonacaDidScrollChange:", e)
+    }
     const handleMonacoDidMount = (
         editor: monaco.editor.IStandaloneCodeEditor,
         monaco: any
     ) => {
         textareaRef.current = editor
+        textareaRef.current.onDidScrollChange(handleMonacoDidScrollChange)
     }
     //
     const focusSelectedMDText = (e: Event) => {
@@ -224,6 +242,22 @@ function App() {
             //
             textareaRef.current.setSelectionRange(pos[0], pos[1])
             */
+            if (previewWrapperRef.current) {
+                console.debug(
+                    "clicked element:",
+                    _elem,
+                    "\nscroll elem:soc",
+                    _elem.scrollTop,
+                    _elem.offsetTop, //_elemの絶対Y座標
+                    _elem.clientTop,
+                    "\nscroll_div:soc\n",
+                    previewWrapperRef.current.scrollTop, //スクロール量
+                    previewWrapperRef.current.offsetTop, //previewWrapperの絶対Y座標
+                    previewWrapperRef.current.clientTop,
+                    "\nelem rel offsetTop:",
+                    _elem.offsetTop - previewWrapperRef.current.offsetTop
+                )
+            }
             const stringPositionToMonacoPosition = (posPoint: number) => {
                 let res = null
                 if (textareaRef.current) {
@@ -253,7 +287,7 @@ function App() {
         const pos = pos_str ? pos_str.split(",").map(Number) : null
         if (pos && textareaRef.current) {
             //不要//_elem.classList.toggle("checked")
-            let newValue = textareaRef.current.value
+            let newValue = textareaRef.current.getValue()
             let newSentence = newValue.substring(pos[0], pos[1])
             if (_elem.classList.contains("checked")) {
                 newSentence = newSentence.replace("[x]", "[ ]")
@@ -264,6 +298,7 @@ function App() {
                 newValue.substring(0, pos[0]) +
                 newSentence +
                 newValue.substring(pos[1])
+            textareaRef.current.setValue(newValue)
             console.log(
                 "task clicked",
                 _elem.dataset,
@@ -307,6 +342,7 @@ function App() {
         console.log("--------preview changed END-------")
     }, [Preview])
     //
+    //
     return (
         <div style={{ maxWidth: "100vw", maxHeight: "50vh" }}>
             <div style={{ display: "flex", width: "100vw", height: "50vh" }}>
@@ -347,6 +383,7 @@ function App() {
                     */}
                 </div>
                 <div
+                    ref={previewWrapperRef}
                     style={{
                         flexBasis: "50%",
                         flexGrow: 1,
@@ -354,6 +391,7 @@ function App() {
                         fontSize: "1rem",
                         overflowY: "scroll",
                     }}
+                    onScroll={handlePreviewDidScrollChange}
                 >
                     {Preview}
                 </div>

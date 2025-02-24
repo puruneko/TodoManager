@@ -66,7 +66,7 @@ ul > li:before {
     */
 }
 /* task list */
-ul > li.task-list-item-checkbox:before {
+ul > li.preview-list-task:before {
     content: "□";
     transform: scale(1.2, 1.2);
     /*
@@ -77,15 +77,15 @@ ul > li.task-list-item-checkbox:before {
     height: auto;
     */
 }
-ul > li.task-list-item-checkbox.checked:before {
+ul > li.preview-list-task.checked:before {
     content: "☑";
 }
 /* quote list */
-ul > li.quote-list {
+ul > li.preview-list-quote {
     color: darkblue;
     text-indent: calc(-0.5 * var(--editor-li-marker-width));
 }
-ul > li.quote-list:before {
+ul > li.preview-list-quote:before {
     content: "";
     transform: scale(0.6, 0.6);
     /*

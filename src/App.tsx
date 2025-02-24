@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react"
 
 import SimpleMarkdown from "./simple-markdown/simple-markdown"
-import type * as SMD from "./simple-markdown/simple-markdown"
+import type * as SimpleMarkdownType from "./simple-markdown/simple-markdown"
+import { genParseRuleResult } from "./simple-markdown/simple-markdown"
 
 //https://github.com/suren-atoyan/monaco-react
 import MonacoEditor from "@monaco-editor/react"
@@ -14,14 +15,17 @@ import { textBench } from "./sampleText"
 import { textTask } from "./sampleText2"
 
 //
-type ParserAndOutputRule = SMD.ParserRule &
-    SMD.ReactOutputRule &
-    SMD.HtmlOutputRule
-type ProcessRule = SMD.ParserRules | SMD.HtmlOutputRule | SMD.ReactOutputRule
+type ParserAndOutputRule = SimpleMarkdownType.ParserRule &
+    SimpleMarkdownType.ReactOutputRule &
+    SimpleMarkdownType.HtmlOutputRule
+type ProcessRule =
+    | SimpleMarkdownType.ParserRules
+    | SimpleMarkdownType.HtmlOutputRule
+    | SimpleMarkdownType.ReactOutputRule
 type ParserAndOutputRule2 =
-    | SMD.DefaultInOutRule
-    | SMD.DefaultInRule
-    | SMD.TextInOutRule
+    | SimpleMarkdownType.DefaultInOutRule
+    | SimpleMarkdownType.DefaultInRule
+    | SimpleMarkdownType.TextInOutRule
 
 function App() {
     ///////////////0         1         2         3
@@ -59,7 +63,7 @@ function App() {
     const textareaRef = useRef<any>()
     const previewWrapperRef = useRef<any>()
 
-    let underlineRule: SMD.DefaultRules["em"] = {
+    let underlineRule: SimpleMarkdownType.DefaultRules["em"] = {
         // Specify the order in which this rule is to be run
         order: SimpleMarkdown.defaultRules.em.order - 0.5,
 
@@ -73,16 +77,16 @@ function App() {
             const param = Object.assign({}, { capture, parse, state })
             console.debug("----captured by underline----")
             console.debug(param)
-            return {
+            return SimpleMarkdown.genParseRuleResult({
                 type: "underline",
-                content: parse(capture[1], state, capture),
-            }
+                children: parse(capture[1], state, capture),
+            })
         },
 
         // Finally transform this syntax node into a
         // React element
         react: function (node, output) {
-            return <u>{output(node.content)}</u>
+            return <u>{output(node.children)}</u>
         },
 
         // Or an html element:
@@ -90,11 +94,11 @@ function App() {
         // `html:`, as long as you never ask for an outputter
         // for the other type.)
         html: function (node, output) {
-            return "<u>" + output(node.content) + "</u>"
+            return "<u>" + output(node.children) + "</u>"
         },
     }
     //
-    let tagRule: SMD.DefaultRules["em"] = {
+    let tagRule: SimpleMarkdownType.DefaultRules["em"] = {
         // Specify the order in which this rule is to be run
         order: SimpleMarkdown.defaultRules.em.order - 0.5,
 
@@ -108,10 +112,10 @@ function App() {
         parse: function (capture, parse, state) {
             const param = Object.assign({}, { capture, parse, state })
             console.debug("----captured by tag ----", param)
-            return {
+            return SimpleMarkdown.genParseRuleResult({
                 type: "tag",
-                content: parse(capture[2], state, capture),
-            }
+                children: parse(capture[2], state, capture),
+            })
         },
 
         // Finally transform this syntax node into a
@@ -122,7 +126,7 @@ function App() {
             }
             return (
                 <span style={{ color: "red" }} onClick={tagFunc}>
-                    (@{node.pos}){output(node.content)}
+                    (@{node.pos}){output(node.children)}
                 </span>
             )
         },
@@ -132,10 +136,10 @@ function App() {
         // `html:`, as long as you never ask for an outputter
         // for the other type.)
         html: function (node, output) {
-            return "<u>" + output(node.content) + "</u>"
+            return "<u>" + output(node.children) + "</u>"
         },
     }
-    let lineQuoteRule: SMD.DefaultRules["em"] = {
+    let lineQuoteRule: SimpleMarkdownType.DefaultRules["em"] = {
         order: SimpleMarkdown.defaultRules.paragraph.order,
         match: function (source, state, prevCaptureStr) {
             const res = /^aaa( *?)[>] *?([^\n]+) */.exec(source)
@@ -144,22 +148,23 @@ function App() {
         parse: function (capture, nestedParse, state) {
             const param = Object.assign({}, { capture, nestedParse, state })
             console.debug("----captured by quate ----", param)
-            return {
-                content: nestedParse(
+            return SimpleMarkdown.genParseRuleResult({
+                type: "quote",
+                children: nestedParse(
                     `${capture[1]}${capture[2].trim()}`,
                     state,
                     capture
                 ),
-            }
+            })
         },
         react: function (node, output, state) {
             return SimpleMarkdown.reactElement("span", "", {
-                children: output(node.content, state),
+                children: output(node.children, state),
                 style: { color: "orange" },
             })
         },
         html: function (node, output, state) {
-            return SimpleMarkdown.htmlTag("span", output(node.content, state))
+            return SimpleMarkdown.htmlTag("span", output(node.children, state))
         },
     }
     //
@@ -181,31 +186,35 @@ function App() {
     }
     // You probably only need one of these: choose depending on
     // whether you want react nodes or an html string:
-    const outputAsReact = SimpleMarkdown.outputFor<SMD.ReactOutputRule>(
-        rules,
-        "react"
-    )
+    const outputAsReact =
+        SimpleMarkdown.outputFor<SimpleMarkdownType.ReactOutputRule>(
+            rules,
+            "react"
+        )
     const outputAsReactRef = useRef(outputAsReact)
     outputAsReactRef.current = (syntaxTree) => {
         return outputAsReact(syntaxTree)
     }
     //
     //
-    useEffect(() => {
-        console.log("--------text changed-------")
-        console.log("  >>>parsing...")
-        const syntaxTree = parseRef.current(text, { inline: false })
-        console.log("  <<<parsing END")
-        console.log("  >>>outputting...")
-        const rOutput = outputAsReactRef.current(syntaxTree)
-        console.log("  <<<outputting END")
-        console.log("--------text changed result:-------")
-        //console.log(text)
-        //console.log(syntaxTree)
-        //console.log(rOutput)
-        setPreview(rOutput)
-        console.log("--------text changed END-------")
-    }, [text])
+    useEffect(
+        function textChangedEffect() {
+            console.log("--------text changed-------")
+            console.log("  >>>parsing...")
+            const syntaxTree = parseRef.current(text, { inline: false })
+            console.log("  <<<parsing END")
+            console.log("  >>>outputting...")
+            const rOutput = outputAsReactRef.current(syntaxTree)
+            console.log("  <<<outputting END")
+            console.log("--------text changed result:-------")
+            //console.log(text)
+            console.log(syntaxTree)
+            //console.log(rOutput)
+            setPreview(rOutput)
+            console.log("--------text changed END-------")
+        },
+        [text]
+    )
     //
     const handlePreviewDidScrollChange = (e: any) => {
         const _elem = e.target as HTMLElement
@@ -312,35 +321,40 @@ function App() {
             setText(newValue)
         }
     }
-    useEffect(() => {
-        console.log("--------preview changed-------")
-        //DEV//
-        Array.from(document.getElementsByClassName("previewText")).forEach(
-            (elem: Element) => {
+    useEffect(
+        function previewChangedEffect() {
+            console.log("--------preview changed-------")
+            //DEV//
+            Array.from(document.getElementsByClassName("previewText")).forEach(
+                (elem: Element) => {
+                    elem.addEventListener("click", (e: Event) => {
+                        e.preventDefault()
+                        focusSelectedMDText(e)
+                        console.log("clicked:", e)
+                        e.stopPropagation()
+                    })
+                }
+            )
+
+            //
+            // preview-list-taskにチェックのオンオフ機能を外付けする
+            //
+            Array.from(
+                document.getElementsByClassName(
+                    `${SimpleMarkdown.LIST_CLASSNAME_PREFIX}-task`
+                )
+            ).forEach((elem: Element) => {
                 elem.addEventListener("click", (e: Event) => {
                     e.preventDefault()
-                    focusSelectedMDText(e)
+                    toggleTaskItemState(e)
                     console.log("clicked:", e)
                     e.stopPropagation()
                 })
-            }
-        )
-
-        //
-        // task-list-item-checkboxにチェックのオンオフ機能を外付けする
-        //
-        Array.from(
-            document.getElementsByClassName("task-list-item-checkbox")
-        ).forEach((elem: Element) => {
-            elem.addEventListener("click", (e: Event) => {
-                e.preventDefault()
-                toggleTaskItemState(e)
-                console.log("clicked:", e)
-                e.stopPropagation()
             })
-        })
-        console.log("--------preview changed END-------")
-    }, [Preview])
+            console.log("--------preview changed END-------")
+        },
+        [Preview]
+    )
     //
     //
     return (
@@ -355,6 +369,7 @@ function App() {
                     }}
                 >
                     <MonacoEditor
+                        width={"100%"}
                         defaultValue={defaultValue}
                         defaultLanguage="markdown"
                         onMount={handleMonacoDidMount}

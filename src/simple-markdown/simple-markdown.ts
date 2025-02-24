@@ -18,7 +18,7 @@
  * Many of the regexes and original logic has been adapted from
  * the wonderful [marked.js](https://github.com/chjj/marked)
  */
-import type { Capture, MatchFunction, State } from "./troublesome-types"
+//import type { Capture, MatchRuleFunction, State } from "./troublesome-types"
 //import "./simple-markdown-types";
 import type * as ReactTypes from "react"
 import * as React from "react"
@@ -29,52 +29,106 @@ type Attr = string | number | boolean | null | undefined
 
 type MDPosition = [number, number]
 
-type SingleASTNode = {
+type ASTNode = {
     type: string
     pos: MDPosition
+    text: string
+    children: ASTNode | Array<ASTNode>
+    key?: string
+    name?: string
     [key: string]: any
 }
 
+type ParseRuleResult = Pick<ASTNode, "type" | "text" | "children"> & {
+    [key: string]: any
+}
+
+const genParseRuleResult = ({
+    type,
+    ...options
+}: Pick<ParseRuleResult, "type"> &
+    Partial<Omit<ParseRuleResult, "type">>): ParseRuleResult => {
+    let parseResult: ParseRuleResult = {
+        ...options,
+        type,
+        text: "text" in options ? (options["text"] as string) : "",
+        children:
+            "children" in options ? (options["children"] as ASTNodeArray) : [],
+    }
+    return parseResult
+}
+const genFragmentParseRuleResult = (options?: { [key: string]: any }) => {
+    return genParseRuleResult({
+        ...options,
+        type: "fragment",
+    })
+}
+
+/*
 type UnTypedASTNode = {
     [key: string]: any
 }
+*/
 
-type ASTNode = SingleASTNode | Array<SingleASTNode>
+type ASTNodeArray = Array<ASTNode> //ASTNode | Array<ASTNode>
 
 type ReactElement = ReactTypes.ReactElement<any>
 type ReactElements = ReactTypes.ReactNode
 
+type Capture =
+    | (Array<string> & {
+          index: number
+      })
+    | (Array<string> & {
+          index?: number
+      })
+//    | RegExpExecArray
+
+type State = {
+    key?: string | number | undefined
+    inline?: boolean | null | undefined
+    [key: string]: any
+}
+
+type MatchRuleFunction = {
+    regex?: RegExp
+} & ((
+    source: string,
+    state: State,
+    prevCapture: string
+) => Capture | null | undefined)
+
+/**
+ * パーサー全体を制御する関数の型
+ */
 type Parser = (
     source: string,
     state: State,
     upperCapture: Capture | null
-) => Array<SingleASTNode>
+) => ASTNodeArray
 
-type ParseFunction = (
+/**
+ * 各ルールのパーサー関数の型
+ */
+type ParseRuleFunction = (
     capture: Capture,
     nestedParse: Parser,
     state: State
-) => ASTNode // | UnTypedASTNode;
-
-type SingleNodeParseFunction = (
-    capture: Capture,
-    nestedParse: Parser,
-    state: State
-) => UnTypedASTNode
+) => ParseRuleResult // | UnTypedASTNode;
 
 type Output<Result> = (
-    node: ASTNode,
+    node: ASTNode | ASTNodeArray,
     state?: State | null | undefined
 ) => Result
 
 type NodeOutput<Result> = (
-    node: SingleASTNode,
+    node: ASTNode,
     nestedOutput: Output<Result>,
     state: State
 ) => Result
 
 type ArrayNodeOutput<Result> = (
-    node: Array<SingleASTNode>,
+    node: Array<ASTNode>,
     nestedOutput: Output<Result>,
     state: State
 ) => Result
@@ -86,24 +140,13 @@ type HtmlNodeOutput = NodeOutput<string>
 
 type ParserRule = {
     readonly order: number
-    readonly match: MatchFunction
+    readonly match: MatchRuleFunction
     readonly quality?: (
         capture: Capture,
         state: State,
         prevCapture: string
     ) => number
-    readonly parse: ParseFunction
-}
-
-type SingleNodeParserRule = {
-    readonly order: number
-    readonly match: MatchFunction
-    readonly quality?: (
-        capture: Capture,
-        state: State,
-        prevCapture: string
-    ) => number
-    readonly parse: SingleNodeParseFunction
+    readonly parse: ParseRuleFunction
 }
 
 type ReactOutputRule = {
@@ -173,13 +216,13 @@ type NonNullHtmlOutputRule = {
     readonly html: HtmlNodeOutput
 }
 
-type DefaultInRule = SingleNodeParserRule & ReactOutputRule & HtmlOutputRule
-//type TextInOutRule = SingleNodeParserRule & TextReactOutputRule & NonNullHtmlOutputRule
+type DefaultInRule = ParserRule & ReactOutputRule & HtmlOutputRule
+//type TextInOutRule = ParserRule & TextReactOutputRule & NonNullHtmlOutputRule
 type TextInOutRule = DefaultInRule
-type LenientInOutRule = SingleNodeParserRule &
+type LenientInOutRule = ParserRule &
     NonNullReactOutputRule &
     NonNullHtmlOutputRule
-type DefaultInOutRule = SingleNodeParserRule &
+type DefaultInOutRule = ParserRule &
     ElementReactOutputRule &
     NonNullHtmlOutputRule
 
@@ -216,11 +259,12 @@ type DefaultRules = {
     readonly inlineCode: DefaultInOutRule
     readonly br: DefaultInOutRule
     readonly text: TextInOutRule
+    readonly fragment: TextInOutRule
 }
 
-type RefNode = {
+type ParseRefRuleResult = ParseRuleResult & {
     type: string
-    content?: ASTNode
+    content?: ASTNodeArray
     target?: string
     title?: string
     alt?: string
@@ -356,9 +400,9 @@ var parserFor = function (
         source: string,
         state: State,
         upperCapture: Capture | null
-    ): Array<SingleASTNode> {
+    ): ASTNodeArray {
         state.parseNumber = state.ParseNumber ? state.ParseNumber + 1 : 1
-        var parsedReault: Array<SingleASTNode> = []
+        var ParsedResultASTNodeArray: ASTNodeArray = []
         state = state || latestState
         latestState = Object.assign({}, state)
         let posLocal = 0
@@ -465,7 +509,7 @@ biteStringLength:${biteStringLength}`
             console.debug(Object.assign({}, { state, source, capture }))
 */
             //////////////// parse phase ////////////////
-            const innerNestedParse: Parser = (
+            const nestedParseWrapper: Parser = (
                 callerSource: string,
                 callerState: State,
                 upperCapture: Capture | null
@@ -474,7 +518,7 @@ biteStringLength:${biteStringLength}`
                 console.debug(
                     `${" ".repeat(
                         callerState.nestLevel * 2
-                    )}innerNestedParse from ${ruleType}[lvUP:${
+                    )}nestedParseWrapper from ${ruleType}[lvUP:${
                         state.nestLevel
                     }->${state.nestLevel + 1}]`,
                     "\n<source>\n",
@@ -500,7 +544,7 @@ biteStringLength:${biteStringLength}`
                 `${" ".repeat(state.nestLevel * 2)}rule.parse(${ruleType})`
             )
             */
-            var parsed = rule.parse(capture, innerNestedParse, newState)
+            var parsed = rule.parse(capture, nestedParseWrapper, newState)
 
             //////////////// save result phase ////////////////
 
@@ -508,10 +552,11 @@ biteStringLength:${biteStringLength}`
             // store references to the objects they return and
             // modify them later. (oops sorry! but this adds a lot
             // of power--see reflinks.)
+            /*
             if (!Array.isArray(parsed)) {
                 parsed = [parsed]
             }
-            ;(parsed as [SingleASTNode]).forEach((p: SingleASTNode) => {
+            ;(parsed as [ParseRuleResult]).forEach((p: ParseRuleResult) => {
                 if (p == null || typeof p !== "object") {
                     throw new Error(
                         `parse() function returned invalid parse result: '${parsed}'`
@@ -535,13 +580,45 @@ biteStringLength:${biteStringLength}`
                         biteStringLength
                     )
                 }
-                parsedReault.push(p)
+                ParsedResultASTNodeArray.push(p)
             })
+            */
+            // We maintain the same object here so that rules can
+            // store references to the objects they return and
+            // modify them later. (oops sorry! but this adds a lot
+            // of power--see reflinks.)
+            if (parsed == null || typeof parsed !== "object") {
+                throw new Error(
+                    `parse() function returned invalid parse result: '${parsed}'`
+                )
+            }
+
+            // We also let rules override the default type of
+            // their parsed node if they would like to, so that
+            // there can be a single output function for all links,
+            // even if there are several rules to parse them.
+            const essintialParams = {
+                pos:
+                    parsed.pos && parsed.pos[0] >= 0 && parsed.pos[1] >= 0
+                        ? parsed.pos
+                        : getPosition(
+                              state.posGlobal,
+                              posLocal,
+                              biteStringLength
+                          ),
+                key: parsed.key || state.parseNumber,
+            }
+            const astNode: ASTNode = {
+                ...parsed,
+                ...essintialParams,
+            }
+            ParsedResultASTNodeArray.push(astNode)
+
             /*
             console.debug(
                 `${" ".repeat(state.nestLevel * 2)}result.push(${ruleType})`,
-                parsedReault[parsedReault.length - 1],
-                parsedReault[parsedReault.length - 1].pos
+                ParsedResultASTNodeArray[ParsedResultASTNodeArray.length - 1],
+                ParsedResultASTNodeArray[ParsedResultASTNodeArray.length - 1].pos
             )*/
 
             state.prevCapture = capture
@@ -550,13 +627,13 @@ biteStringLength:${biteStringLength}`
         }
         state.posGlobal += posLocal
 
-        return parsedReault
+        return ParsedResultASTNodeArray
     }
 
     var outerParse: Parser = function (
         source: string,
         state?: State | null
-    ): Array<SingleASTNode> {
+    ): ASTNodeArray {
         latestState = populateInitialState(state, defaultState)
         if (!latestState.inline && !latestState.disableAutoBlockNewlines) {
             source = source + "\n\n"
@@ -581,7 +658,7 @@ biteStringLength:${biteStringLength}`
 }
 
 // Creates a match function for an inline scoped element from a regex
-var inlineRegex = function (regex: RegExp): MatchFunction {
+var inlineRegex = function (regex: RegExp): MatchRuleFunction {
     var match = function (
         source: string,
         state: State,
@@ -600,8 +677,8 @@ var inlineRegex = function (regex: RegExp): MatchFunction {
 }
 
 // Creates a match function for a block scoped element from a regex
-var blockRegex = function (regex: RegExp): MatchFunction {
-    var match: MatchFunction = function (source, state) {
+var blockRegex = function (regex: RegExp): MatchRuleFunction {
+    var match: MatchRuleFunction = function (source, state) {
         if (state.inline) {
             return null
         } else {
@@ -613,8 +690,8 @@ var blockRegex = function (regex: RegExp): MatchFunction {
 }
 
 // Creates a match function from a regex, ignoring block/inline scope
-var anyScopeRegex = function (regex: RegExp): MatchFunction {
-    var match: MatchFunction = function (source, state) {
+var anyScopeRegex = function (regex: RegExp): MatchRuleFunction {
+    var match: MatchRuleFunction = function (source, state) {
         return regex.exec(source)
     }
     match.regex = regex
@@ -627,7 +704,7 @@ var TYPE_SYMBOL =
         Symbol.for("react.element")) ||
     0xeac7
 
-var reactElement = function (
+const reactElement = function (
     type: string,
     key: string | number | null | undefined,
     props: {
@@ -647,7 +724,7 @@ var reactElement = function (
 
 /** Returns a closed HTML tag.
  * @param {string} tagName - Name of HTML tag (eg. "em" or "a")
- * @param {string} content - Inner content of tag
+ * @param {string} text - Inner content of tag
  * @param {{ [attr: string]: SimpleMarkdown.Attr }} [attributes] - Optional extra attributes of tag as an object of key-value pairs
  *   eg. { "href": "http://google.com" }. Falsey attributes are filtered out.
  * @param {boolean} [isClosed] - boolean that controls whether tag is closed or not (eg. img tags).
@@ -655,7 +732,7 @@ var reactElement = function (
  */
 var htmlTag = function (
     tagName: string,
-    content: string,
+    text: string,
     attributes?: Partial<Record<any, Attr | null | undefined>> | null,
     isClosed?: boolean | null
 ) {
@@ -678,7 +755,7 @@ var htmlTag = function (
     var unclosedTag = "<" + tagName + attributeString + ">"
 
     if (isClosed) {
-        return unclosedTag + content + "</" + tagName + ">"
+        return unclosedTag + text + "</" + tagName + ">"
     } else {
         return unclosedTag
     }
@@ -739,28 +816,29 @@ var unescapeUrl = function (rawUrlString: string): string {
  * set to true. Useful for block elements; not generally necessary
  * to be used by inline elements (where state.inline is already true.
  */
-var parseInline = function (
-    parse: Parser,
-    content: string,
+
+var nestedParseInline = function (
+    nestedParse: Parser,
+    text: string,
     state: State,
     capture: Capture | null
-): ASTNode {
+): ASTNodeArray {
     var isCurrentlyInline = state.inline || false
     state.inline = true
-    var result = parse(content, state, capture)
+    var result = nestedParse(text, state, capture)
     state.inline = isCurrentlyInline
     return result
 }
 
 var parseBlock = function (
     parse: Parser,
-    content: string,
+    text: string,
     state: State,
     capture: Capture | null
-): ASTNode {
+): ASTNodeArray {
     var isCurrentlyInline = state.inline || false
     state.inline = false
-    var result = parse(content + "\n\n", state, capture)
+    var result = parse(text + "\n\n", state, capture)
     state.inline = isCurrentlyInline
     return result
 }
@@ -769,17 +847,20 @@ var parseCaptureInline = function (
     capture: Capture,
     parse: Parser,
     state: State
-): UnTypedASTNode {
+): ParseRuleResult {
     const param = Object.assign({}, { capture, parse, state })
-    return {
-        content: parseInline(parse, capture[1], state, capture),
-    }
+    return genFragmentParseRuleResult({
+        type: "inline",
+        children: nestedParseInline(parse, capture[1], state, capture),
+    })
 }
 
-var ignoreCapture = function (): UnTypedASTNode {
-    return {}
+var ignoreCapture = function (): ParseRuleResult {
+    return genFragmentParseRuleResult()
 }
 
+// className
+const LIST_CLASSNAME_PREFIX = "preview-list"
 // recognize a `*` `-`, `+`, `1.`, `2.`... list bullet
 const NORMAL_LIST_BULLET = "[*+-]"
 const ORDERED_LIST_BULLET = "\\d+\\."
@@ -805,10 +886,24 @@ const getListType = (bullet: string): ListType => {
     }
     return listType
 }
+const toBulletTypeFromString = (_str: string) => {
+    let bulletType: string = ""
+    if (!!IS_TASK_LIST_R.exec(_str)) {
+        bulletType =
+            _str.indexOf("[x]") >= 0 ? "task_checked" : "task_unchecked"
+    } else if (!!IS_ORDERED_LIST_R.exec(_str)) {
+        bulletType = "ordered"
+    } else if (!!IS_QUOTE_LIST_R.exec(_str)) {
+        bulletType = "quote"
+    } else if (!!IS_NORMAL_LIST_R.exec(_str)) {
+        bulletType = "normal"
+    }
+    return bulletType
+}
 type ListItemContent = {
     itemListType: ListType
     itemBullet: string
-    itemNodes: ASTNode
+    itemNodes: ASTNodeArray
     pos: MDPosition
 }
 //
@@ -903,7 +998,7 @@ var TABLES = (function () {
         state: State,
         capture: Capture | null,
         trimEndSeparators: boolean
-    ): Array<Array<SingleASTNode>> {
+    ): Array<Array<ASTNode>> {
         var prevInTable = state.inTable
         state.inTable = true
         var tableRow = parse(source.trim(), state, capture)
@@ -926,9 +1021,9 @@ var TABLES = (function () {
                     (tableRow[i + 1] == null ||
                         tableRow[i + 1].type === "tableSeparator")
                 ) {
-                    node.content = node.content.replace(TABLE_CELL_END_TRIM, "")
+                    node.text = node.text.replace(TABLE_CELL_END_TRIM, "")
                 }
-                // @ts-expect-error - TS2345 - Argument of type 'SingleASTNode' is not assignable to parameter of type 'never'.
+                // @ts-expect-error - TS2345 - Argument of type 'ASTNode' is not assignable to parameter of type 'never'.
                 cells[cells.length - 1].push(node)
             }
         })
@@ -941,7 +1036,7 @@ var TABLES = (function () {
      * @param {SimpleMarkdown.Parser} parse
      * @param {SimpleMarkdown.State} state
      * @param {boolean} trimEndSeparators
-     * @returns {SimpleMarkdown.ASTNode[][]}
+     * @returns {SimpleMarkdown.ASTNodeArray[][]}
      */
     var parseTableCells = function (
         source: string,
@@ -949,7 +1044,7 @@ var TABLES = (function () {
         state: State,
         capture: Capture | null,
         trimEndSeparators: boolean
-    ): Array<Array<ASTNode>> {
+    ): Array<Array<ASTNodeArray>> {
         var rowsText = source.trim().split("\n")
 
         return rowsText.map(function (rowText) {
@@ -965,7 +1060,7 @@ var TABLES = (function () {
 
     /**
      * @param {boolean} trimEndSeparators
-     * @returns {SimpleMarkdown.SingleNodeParseFunction}
+     * @returns {SimpleMarkdown.ParseRuleFunction}
      */
     var parseTable = function (trimEndSeparators: boolean) {
         return function (capture: Capture, parse: Parser, state: State) {
@@ -992,12 +1087,12 @@ var TABLES = (function () {
             )
             state.inline = false
 
-            return {
+            return genParseRuleResult({
                 type: "table",
                 header: header,
                 align: align,
                 cells: cells,
-            }
+            })
         }
     }
 
@@ -1019,8 +1114,8 @@ var AUTOLINK_MAILTO_CHECK_R = /mailto:/i
 var parseRef = function (
     capture: Capture,
     state: State,
-    refNode: RefNode
-): RefNode {
+    refNode: ParseRefRuleResult
+): ParseRefRuleResult {
     var ref = (capture[2] || capture[1]).replace(/\s+/g, " ").toLowerCase()
 
     // We store information about previously seen defs on
@@ -1051,7 +1146,7 @@ var parseRef = function (
 
 var currOrder = 0
 const default_ArrayRule: DefaultRules["Array"] = {
-    react: function (arr, output, state) {
+    react: function (arr, nestedOutput, state) {
         var oldKey = state.key
         var result: Array<ReactElements> = []
 
@@ -1065,20 +1160,20 @@ const default_ArrayRule: DefaultRules["Array"] = {
 
             var node = arr[i]
             if (node.type === "text") {
-                //node = { type: "text", content: node.content }
+                //node = { type: "text", text: node.text }
                 node = { ...node, type: "text" }
                 for (; i + 1 < arr.length && arr[i + 1].type === "text"; i++) {
-                    node.content += arr[i + 1].content
+                    node.text += arr[i + 1].text
                 }
             }
 
-            result.push(output(node, state))
+            result.push(nestedOutput(node, state))
         }
 
         state.key = oldKey
         return result
     },
-    html: function (arr, output, state) {
+    html: function (arr, nestedOutput, state) {
         var result = ""
 
         // map output over the ast, except group any text
@@ -1086,14 +1181,14 @@ const default_ArrayRule: DefaultRules["Array"] = {
         for (var i = 0; i < arr.length; i++) {
             var node = arr[i]
             if (node.type === "text") {
-                //node = { type: "text", content: node.content }
+                //node = { type: "text", text: node.text }
                 node = { ...node, type: "text" }
                 for (; i + 1 < arr.length && arr[i + 1].type === "text"; i++) {
-                    node.content += arr[i + 1].content
+                    node.text += arr[i + 1].text
                 }
             }
 
-            result += output(node, state)
+            result += nestedOutput(node, state)
         }
         return result
     },
@@ -1103,23 +1198,25 @@ const default_headingRule: DefaultRules["heading"] = {
     match: blockRegex(/^ *(#{1,6})([^\n]+?)#* *(?:\n *)+\n?/),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return {
+        return genParseRuleResult({
+            type: "heading",
             level: capture[1].length,
-            content: parseInline(
+            //children: nestedParseInline(
+            children: nestedParseInline(
                 nestedParse,
                 capture[2].trim(),
                 state,
                 capture
             ),
-        }
-    },
-    react: function (node, output, state) {
-        return reactElement("h" + node.level, state.key, {
-            children: output(node.content, state),
         })
     },
-    html: function (node, output, state) {
-        return htmlTag("h" + node.level, output(node.content, state))
+    react: function (node, nestedOutput, state) {
+        return reactElement("h" + node.level, state.key, {
+            children: nestedOutput(node.children, state),
+        })
+    },
+    html: function (node, nestedOutput, state) {
+        return htmlTag("h" + node.level, nestedOutput(node.children, state))
     },
 }
 const default_nptableRule: DefaultRules["nptable"] = {
@@ -1134,11 +1231,16 @@ const default_lheadingRule: DefaultRules["lheading"] = {
     match: blockRegex(/^([^\n]+)\n *(=|-){3,} *(?:\n *)+\n?/),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return {
+        return genParseRuleResult({
             type: "heading",
             level: capture[2] === "=" ? 1 : 2,
-            content: parseInline(nestedParse, capture[1], state, capture),
-        }
+            children: nestedParseInline(
+                nestedParse,
+                capture[1],
+                state,
+                capture
+            ),
+        })
     },
     react: null,
     html: null,
@@ -1147,10 +1249,10 @@ const default_hrRule: DefaultRules["hr"] = {
     order: currOrder++,
     match: blockRegex(/^( *[-*_]){3,} *(?:\n *)+\n/),
     parse: ignoreCapture,
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return reactElement("hr", state.key, { "aria-hidden": true })
     },
-    html: function (node, output, state) {
+    html: function (node, nestedOutput, state) {
         return '<hr aria-hidden="true">'
     },
 }
@@ -1159,13 +1261,14 @@ const default_codeBlockRule: DefaultRules["codeBlock"] = {
     match: blockRegex(/^(?:    [^\n]+\n*)+(?:\n *)+\n/),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        var content = capture[0].replace(/^    /gm, "").replace(/\n+$/, "")
-        return {
+        var text = capture[0].replace(/^    /gm, "").replace(/\n+$/, "")
+        return genParseRuleResult({
+            type: "codeBlock",
             lang: undefined,
-            content: content,
-        }
+            text,
+        })
     },
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         var className = node.lang ? "markdown-code-" + node.lang : undefined
 
         return reactElement("pre", state.key, {
@@ -1175,10 +1278,14 @@ const default_codeBlockRule: DefaultRules["codeBlock"] = {
             }),
         })
     },
-    html: function (node, output, state) {
+    html: function (node, nestedOutput, state) {
         var className = node.lang ? "markdown-code-" + node.lang : undefined
 
-        var codeBlock = htmlTag("code", sanitizeText(node.content), {
+        if (typeof node.text !== "string") {
+            throw new Error("html code block isnot allowed children elements.")
+        }
+
+        var codeBlock = htmlTag("code", sanitizeText(node.text), {
             class: className,
         })
         return htmlTag("pre", codeBlock)
@@ -1191,11 +1298,11 @@ const default_fenceRule: DefaultRules["fence"] = {
     ),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return {
+        return genParseRuleResult({
             type: "codeBlock",
             lang: capture[2] || undefined,
-            content: capture[3],
-        }
+            text: capture[3],
+        })
     },
     react: null,
     html: null,
@@ -1205,19 +1312,20 @@ const default_blockQuoteRule: DefaultRules["blockQuote"] = {
     match: blockRegex(/^( *>[^\n]+(\n[^\n]+)*\n*)+\n{2,}/),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        var content = capture[0].replace(/^ *> ?/gm, "")
-        return {
-            content: nestedParse(content, state, capture),
-        }
+        var text = capture[0].replace(/^ *> ?/gm, "")
+        return genParseRuleResult({
+            type: "blockQuote",
+            children: nestedParse(text, state, capture),
+        })
     },
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return reactElement("blockquote", state.key, {
-            children: output(node.content, state),
+            children: nestedOutput(node.children, state),
             style: { color: "yellow" },
         })
     },
-    html: function (node, output, state) {
-        return htmlTag("blockquote", output(node.content, state))
+    html: function (node, nestedOutput, state) {
+        return htmlTag("blockquote", nestedOutput(node.children, state))
     },
 }
 const default_listRule: DefaultRules["list"] = {
@@ -1363,15 +1471,15 @@ const default_listRule: DefaultRules["list"] = {
             return itemContent
         })
 
-        const wrapperContent = {
+        return genParseRuleResult({
+            type: "list",
             listType: listType,
             bullet: bullet,
             start: start,
             items: itemsContent,
-        }
-        return wrapperContent
+        })
     },
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         let wrapperGroups: {
             listType: ListType
             pos: MDPosition
@@ -1389,16 +1497,13 @@ const default_listRule: DefaultRules["list"] = {
             const itemListType = itemContent.itemListType
                 ? itemContent.itemListType
                 : node.listType
-            //normal
-            let elem = reactElement("li", `${state.key}.${i}`, {
-                "data-pos": itemContent.pos,
-                children: output(itemContent.itemNodes, state),
-            })
+            //
+            let elem: ReactElement
             //ordered
             if (itemListType === "ordered") {
                 elem = reactElement("li", `${state.key}.${i}`, {
                     "data-pos": itemContent.pos,
-                    children: output(itemContent.itemNodes, state),
+                    children: nestedOutput(itemContent.itemNodes, state),
                 })
             }
             //task
@@ -1412,21 +1517,37 @@ const default_listRule: DefaultRules["list"] = {
                 const taskStatus =
                     itemContent.itemBullet.indexOf("[x]") >= 0 ? "checked" : ""
                 elem = reactElement("li", `${state.key}.${i}`, {
-                    className: `task-list-item-checkbox ${taskStatus}`,
+                    className: `${taskStatus}`,
                     //onClick: checkboxFunc,
                     "data-pos": itemContent.pos,
-                    children: output(itemContent.itemNodes, state),
+                    children: nestedOutput(itemContent.itemNodes, state),
                 })
-            } else if (itemListType === "quote") {
+            }
+            //quote
+            else if (itemListType === "quote") {
                 elem = reactElement("li", `${state.key}.${i}`, {
-                    className: "quote-list",
                     "data-pos": itemContent.pos,
                     children: reactElement("code", `${state.key}.${i}`, {
                         "data-pos": itemContent.pos,
-                        children: output(itemContent.itemNodes, state),
+                        children: nestedOutput(itemContent.itemNodes, state),
                     }),
                 })
             }
+            //normal
+            else {
+                let bulletName = IS_NORMAL_LIST_R.exec(
+                    itemContent.itemBullet
+                )?.[0]
+                elem = reactElement("li", `${state.key}.${i}`, {
+                    className: `${LIST_CLASSNAME_PREFIX}-${itemListType}-${bulletName}`,
+                    "data-pos": itemContent.pos,
+                    children: nestedOutput(itemContent.itemNodes, state),
+                })
+            }
+
+            // listの共通クラス付与
+            elem.props.className = `${LIST_CLASSNAME_PREFIX} ${LIST_CLASSNAME_PREFIX}-${itemListType} ${elem.props.className}`
+
             //
             //update
             //
@@ -1464,10 +1585,10 @@ const default_listRule: DefaultRules["list"] = {
             }),
         })
     },
-    html: function (node, output, state) {
+    html: function (node, nestedOutput, state) {
         var listItems = node.items
-            .map(function (item: ASTNode) {
-                return htmlTag("li", output(item, state))
+            .map(function (item: ASTNodeArray) {
+                return htmlTag("li", nestedOutput(item, state))
             })
             .join("")
 
@@ -1501,7 +1622,7 @@ const default_defRule: DefaultRules["def"] = {
         // Sorry :(.
         if (state._refs && state._refs[def]) {
             // `refNode` can be a link or an image
-            state._refs[def].forEach(function (refNode: RefNode) {
+            state._refs[def].forEach(function (refNode: ParseRefRuleResult) {
                 refNode.target = target
                 refNode.title = title
             })
@@ -1520,11 +1641,12 @@ const default_defRule: DefaultRules["def"] = {
 
         // return the relevant parsed information
         // for debugging only.
-        return {
+        return genParseRuleResult({
+            type: "def",
             def: def,
             target: target,
             title: title,
-        }
+        })
     },
     react: function () {
         return null
@@ -1537,7 +1659,7 @@ const default_tableRule: DefaultRules["table"] = {
     order: currOrder++,
     match: blockRegex(TABLES.TABLE_REGEX),
     parse: TABLES.parseTable,
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         var getStyle = function (colIndex: number): {
             [attr: string]: Attr
         } {
@@ -1548,20 +1670,29 @@ const default_tableRule: DefaultRules["table"] = {
                   }
         }
 
-        var headers = node.header.map(function (content: ASTNode, i: number) {
+        var headers = node.header.map(function (
+            nodeArray: ASTNodeArray,
+            i: number
+        ) {
             return reactElement("th", `${state.key}.${i}`, {
                 style: getStyle(i),
                 scope: "col",
-                children: output(content, state),
+                children: nestedOutput(nodeArray, state),
             })
         })
 
-        var rows = node.cells.map(function (row: Array<ASTNode>, r: number) {
+        var rows = node.cells.map(function (
+            row: Array<ASTNodeArray>,
+            r: number
+        ) {
             return reactElement("tr", `${state.key}.${r}`, {
-                children: row.map(function (content: ASTNode, c: number) {
+                children: row.map(function (
+                    nodeArray: ASTNodeArray,
+                    c: number
+                ) {
                     return reactElement("td", `${state.key}.${c}`, {
                         style: getStyle(c),
-                        children: output(content, state),
+                        children: nestedOutput(nodeArray, state),
                     })
                 }),
             })
@@ -1580,7 +1711,7 @@ const default_tableRule: DefaultRules["table"] = {
             ],
         })
     },
-    html: function (node, output, state) {
+    html: function (node, nestedOutput, state) {
         var getStyle = function (colIndex: number): string {
             return node.align[colIndex] == null
                 ? ""
@@ -1588,8 +1719,8 @@ const default_tableRule: DefaultRules["table"] = {
         }
 
         var headers = node.header
-            .map(function (content: ASTNode, i: number) {
-                return htmlTag("th", output(content, state), {
+            .map(function (nodeArray: ASTNodeArray, i: number) {
+                return htmlTag("th", nestedOutput(nodeArray, state), {
                     style: getStyle(i),
                     scope: "col",
                 })
@@ -1597,10 +1728,10 @@ const default_tableRule: DefaultRules["table"] = {
             .join("")
 
         var rows = node.cells
-            .map(function (row: Array<ASTNode>) {
+            .map(function (row: Array<ASTNodeArray>) {
                 var cols = row
-                    .map(function (content: ASTNode, c: number) {
-                        return htmlTag("td", output(content, state), {
+                    .map(function (nodeArray: ASTNodeArray, c: number) {
+                        return htmlTag("td", nestedOutput(nodeArray, state), {
                             style: getStyle(c),
                         })
                     })
@@ -1620,10 +1751,10 @@ const default_newlineRule: DefaultRules["newline"] = {
     order: currOrder++,
     match: blockRegex(/^(?:\n *)*\n/),
     parse: ignoreCapture,
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return "\n"
     },
-    html: function (node, output, state) {
+    html: function (node, nestedOutput, state) {
         return "\n"
     },
 }
@@ -1631,17 +1762,17 @@ const default_paragraphRule: DefaultRules["paragraph"] = {
     order: currOrder++,
     match: blockRegex(/^((?:[^\n]|\n(?! *\n))+)(?:\n *)+\n/),
     parse: parseCaptureInline,
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return reactElement("div", state.key, {
             className: "paragraph",
-            children: output(node.content, state),
+            children: nestedOutput(node.children, state),
         })
     },
-    html: function (node, output, state) {
+    html: function (node, nestedOutput, state) {
         var attributes = {
             class: "paragraph",
         }
-        return htmlTag("div", output(node.content, state), attributes)
+        return htmlTag("div", nestedOutput(node.children, state), attributes)
     },
 }
 const default_escapeRule: DefaultRules["escape"] = {
@@ -1653,10 +1784,10 @@ const default_escapeRule: DefaultRules["escape"] = {
     match: inlineRegex(/^\\([^0-9A-Za-z\s])/),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return {
+        return genParseRuleResult({
             type: "text",
-            content: capture[1],
-        }
+            text: capture[1],
+        })
     },
     react: null,
     html: null,
@@ -1671,7 +1802,7 @@ const default_tableSeparatorRule: DefaultRules["tableSeparator"] = {
     },
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return { type: "tableSeparator" }
+        return genParseRuleResult({ type: "tableSeparator" })
     },
     // These shouldn't be reached, but in case they are, be reasonable:
     react: function () {
@@ -1686,16 +1817,16 @@ const default_autolinkRule: DefaultRules["autolink"] = {
     match: inlineRegex(/^<([^: >]+:\/[^ >]+)>/),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return {
+        return genParseRuleResult({
             type: "link",
-            content: [
-                {
+            children: [
+                genParseRuleResult({
                     type: "text",
-                    content: capture[1],
-                },
+                    text: capture[1],
+                }),
             ],
             target: capture[1],
-        }
+        })
     },
     react: null,
     html: null,
@@ -1713,16 +1844,16 @@ const default_mailtoRule: DefaultRules["mailto"] = {
             target = "mailto:" + target
         }
 
-        return {
+        return genParseRuleResult({
             type: "link",
             content: [
-                {
+                genParseRuleResult({
                     type: "text",
                     content: address,
-                },
+                }),
             ],
             target: target,
-        }
+        })
     },
     react: null,
     html: null,
@@ -1732,17 +1863,17 @@ const default_urlRule: DefaultRules["url"] = {
     match: inlineRegex(/^(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return {
+        return genParseRuleResult({
             type: "link",
             content: [
-                {
+                genParseRuleResult({
                     type: "text",
                     content: capture[1],
-                },
+                }),
             ],
             target: capture[1],
             title: undefined,
-        }
+        })
     },
     react: null,
     html: null,
@@ -1756,27 +1887,28 @@ const default_linkRule: DefaultRules["link"] = {
     ),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        var link = {
-            content: nestedParse(capture[1], state, capture),
+        var link = genParseRuleResult({
+            type: "link",
+            children: nestedParse(capture[1], state, capture),
             target: unescapeUrl(capture[2]),
             title: capture[3],
-        }
+        })
         return link
     },
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return reactElement("a", state.key, {
             href: sanitizeUrl(node.target),
             title: node.title,
-            children: output(node.content, state),
+            children: nestedOutput(node.children, state),
         })
     },
-    html: function (node, output, state) {
+    html: function (node, nestedOutput, state) {
         var attributes = {
             href: sanitizeUrl(node.target),
             title: node.title,
         }
 
-        return htmlTag("a", output(node.content, state), attributes)
+        return htmlTag("a", nestedOutput(node.children, state), attributes)
     },
 }
 const default_imageRule: DefaultRules["image"] = {
@@ -1788,21 +1920,22 @@ const default_imageRule: DefaultRules["image"] = {
     ),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        var image = {
+        var image = genParseRuleResult({
+            type: "image",
             alt: capture[1],
             target: unescapeUrl(capture[2]),
             title: capture[3],
-        }
+        })
         return image
     },
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return reactElement("img", state.key, {
             src: sanitizeUrl(node.target),
             alt: node.alt,
             title: node.title,
         })
     },
-    html: function (node, output, state) {
+    html: function (node, nestedOutput, state) {
         var attributes = {
             src: sanitizeUrl(node.target),
             alt: node.alt,
@@ -1826,10 +1959,14 @@ const default_reflinkRule: DefaultRules["reflink"] = {
     ),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return parseRef(capture, state, {
-            type: "link",
-            content: nestedParse(capture[1], state, capture),
-        })
+        return parseRef(
+            capture,
+            state,
+            genParseRuleResult({
+                type: "reflink",
+                children: nestedParse(capture[1], state, capture),
+            })
+        )
     },
     react: null,
     html: null,
@@ -1848,10 +1985,14 @@ const default_refimageRule: DefaultRules["refimage"] = {
     ),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return parseRef(capture, state, {
-            type: "image",
-            alt: capture[1],
-        })
+        return parseRef(
+            capture,
+            state,
+            genParseRuleResult({
+                type: "image",
+                alt: capture[1],
+            })
+        )
     },
     react: null,
     html: null,
@@ -1899,17 +2040,18 @@ const default_emRule: DefaultRules["em"] = {
             shiftGlobalPosition(state, shift)
             */
         //
-        return {
-            content: nestedParse(nestedSource, state, capture),
-        }
-    },
-    react: function (node, output, state) {
-        return reactElement("em", state.key, {
-            children: output(node.content, state),
+        return genParseRuleResult({
+            type: "em",
+            children: nestedParse(nestedSource, state, capture),
         })
     },
-    html: function (node, output, state) {
-        return htmlTag("em", output(node.content, state))
+    react: function (node, nestedOutput, state) {
+        return reactElement("em", state.key, {
+            children: nestedOutput(node.children, state),
+        })
+    },
+    html: function (node, nestedOutput, state) {
+        return htmlTag("em", nestedOutput(node.children, state))
     },
 }
 const default_strongRule: DefaultRules["strong"] = {
@@ -1920,13 +2062,13 @@ const default_strongRule: DefaultRules["strong"] = {
         return capture[0].length + 0.1
     },
     parse: parseCaptureInline,
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return reactElement("strong", state.key, {
-            children: output(node.content, state),
+            children: nestedOutput(node.children, state),
         })
     },
-    html: function (node, output, state) {
-        return htmlTag("strong", output(node.content, state))
+    html: function (node, nestedOutput, state) {
+        return htmlTag("strong", nestedOutput(node.children, state))
     },
 }
 const default_uRule: DefaultRules["u"] = {
@@ -1937,26 +2079,26 @@ const default_uRule: DefaultRules["u"] = {
         return capture[0].length
     },
     parse: parseCaptureInline,
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return reactElement("u", state.key, {
-            children: output(node.content, state),
+            children: nestedOutput(node.children, state),
         })
     },
-    html: function (node, output, state) {
-        return htmlTag("u", output(node.content, state))
+    html: function (node, nestedOutput, state) {
+        return htmlTag("u", nestedOutput(node.children, state))
     },
 }
 const default_delRule: DefaultRules["del"] = {
     order: currOrder++,
     match: inlineRegex(/^~~(?=\S)((?:\\[\s\S]|~(?!~)|[^\s~\\]|\s(?!~~))+?)~~/),
     parse: parseCaptureInline,
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return reactElement("del", state.key, {
-            children: output(node.content, state),
+            children: nestedOutput(node.children, state),
         })
     },
-    html: function (node, output, state) {
-        return htmlTag("del", output(node.content, state))
+    html: function (node, nestedOutput, state) {
+        return htmlTag("del", nestedOutput(node.children, state))
     },
 }
 const default_inlineCodeRule: DefaultRules["inlineCode"] = {
@@ -1964,27 +2106,28 @@ const default_inlineCodeRule: DefaultRules["inlineCode"] = {
     match: inlineRegex(/^(`+)([\s\S]*?[^`])\1(?!`)/),
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return {
-            content: capture[2].replace(INLINE_CODE_ESCAPE_BACKTICKS_R, "$1"),
-        }
-    },
-    react: function (node, output, state) {
-        return reactElement("code", state.key, {
-            children: node.content,
+        return genParseRuleResult({
+            type: "inlineCode",
+            text: capture[2].replace(INLINE_CODE_ESCAPE_BACKTICKS_R, "$1"),
         })
     },
-    html: function (node, output, state) {
-        return htmlTag("code", sanitizeText(node.content))
+    react: function (node, nestedOutput, state) {
+        return reactElement("code", state.key, {
+            children: node.text,
+        })
+    },
+    html: function (node, nestedOutput, state) {
+        return htmlTag("code", sanitizeText(node.text))
     },
 }
 const default_brRule: DefaultRules["br"] = {
     order: currOrder++,
     match: anyScopeRegex(/^ {2,}\n/),
     parse: ignoreCapture,
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return reactElement("br", state.key, EMPTY_PROPS)
     },
-    html: function (node, output, state) {
+    html: function (node, nestedOutput, state) {
         return "<br>"
     },
 }
@@ -2003,21 +2146,45 @@ const default_textRule: DefaultRules["text"] = {
     },
     parse: function (capture, nestedParse, state) {
         const param = Object.assign({}, { capture, nestedParse, state })
-        return {
-            content: capture[0],
-        }
+        return genParseRuleResult({
+            type: "text",
+            text: capture[0],
+        })
     },
-    react: function (node, output, state) {
+    react: function (node, nestedOutput, state) {
         return React.createElement(React.Fragment, {
             children: reactElement("span", state.key, {
-                children: node.content,
+                children: node.text,
                 className: "previewText",
                 "data-pos": node.pos,
             }),
         })
     },
-    html: function (node, output, state) {
-        return sanitizeText(node.content)
+    html: function (node, nestedOutput, state) {
+        return sanitizeText(node.text)
+    },
+}
+
+const default_fragmentRule: DefaultRules["text"] = {
+    order: currOrder++,
+    // Here we look for anything followed by non-symbols,
+    // double newlines, or double-space-newlines
+    // We break on any symbol characters so that this grammar
+    // is easy to extend without needing to modify this regex
+    //orig    /^[\s\S]+?(?=[^0-9A-Za-z\s\u00c0-\uffff]|\n\n| {2,}\n|\w+:\S|$)/
+    match: function (source, state) {
+        return null
+    },
+    parse: function (capture, nestedParse, state) {
+        return genFragmentParseRuleResult()
+    },
+    react: function (node, nestedOutput, state) {
+        return React.createElement(React.Fragment, {
+            children: nestedOutput(node.children, state),
+        })
+    },
+    html: function (node, nestedOutput, state) {
+        return nestedOutput(node.children, state)
     },
 }
 
@@ -2051,6 +2218,7 @@ var defaultRules: DefaultRules = {
     inlineCode: default_inlineCodeRule,
     br: default_brRule,
     text: default_textRule,
+    fragment: default_fragmentRule,
 }
 
 /** (deprecated) */
@@ -2066,7 +2234,7 @@ var ruleOutput = function <Rule>(
     }
 
     var nestedRuleOutput = function (
-        ast: SingleASTNode,
+        ast: ASTNode,
         outputFunc: Output<any>,
         state: State
     ) {
@@ -2162,16 +2330,16 @@ var outputFor = function <Rule>(
     }
     var arrayRuleOutput = arrayRuleCheck
 
-    var nestedOutput: Output<any> = function (ast, state) {
+    var nestedOutput: Output<any> = function (astNodeInfo, state) {
         state = state || latestState
         latestState = state
-        if (Array.isArray(ast)) {
-            return arrayRuleOutput(ast, nestedOutput, state)
+        if (Array.isArray(astNodeInfo)) {
+            return arrayRuleOutput(astNodeInfo, nestedOutput, state)
         } else {
             // @ts-expect-error - TS2349 - This expression is not callable.
             //   Type 'unknown' has no call signatures.
-            let reactnode: ReactElement = rules[ast.type][property](
-                ast,
+            let reactnode: ReactElement = rules[astNodeInfo.type][property](
+                astNodeInfo,
                 nestedOutput,
                 state
             )
@@ -2193,7 +2361,7 @@ var defaultBlockParse = function (
     source: string,
     state?: State | null,
     capture?: Capture | null
-): Array<SingleASTNode> {
+): Array<ASTNode> {
     state = state || {}
     state.inline = false
     return defaultRawParse(source, state, capture || null)
@@ -2203,7 +2371,7 @@ var defaultInlineParse = function (
     source: string,
     state?: State | null,
     capture?: Capture | null
-): Array<SingleASTNode> {
+): Array<ASTNode> {
     state = state || {}
     state.inline = true
     return defaultRawParse(source, state, capture || null)
@@ -2213,7 +2381,7 @@ var defaultImplicitParse = function (
     source: string,
     state?: State | null,
     capture?: Capture | null
-): Array<SingleASTNode> {
+): Array<ASTNode> {
     var isBlock = BLOCK_END_R.test(source)
     state = state || {}
     state.inline = !isBlock
@@ -2253,6 +2421,9 @@ var ReactMarkdown = function (props: Props): ReactTypes.ReactElement {
 }
 
 type Exports = {
+    //DEBUG:
+    [key: string]: any
+    //
     readonly defaultRules: DefaultRules
     readonly parserFor: (
         rules: ParserRules,
@@ -2269,21 +2440,21 @@ type Exports = {
     ) => NodeOutput<any>
     readonly reactFor: (arg1: ReactNodeOutput) => ReactOutput
     readonly htmlFor: (arg1: HtmlNodeOutput) => HtmlOutput
-    readonly inlineRegex: (regex: RegExp) => MatchFunction
-    readonly blockRegex: (regex: RegExp) => MatchFunction
-    readonly anyScopeRegex: (regex: RegExp) => MatchFunction
-    readonly parseInline: (
+    readonly inlineRegex: (regex: RegExp) => MatchRuleFunction
+    readonly blockRegex: (regex: RegExp) => MatchRuleFunction
+    readonly anyScopeRegex: (regex: RegExp) => MatchRuleFunction
+    readonly nestedParseInline: (
         parse: Parser,
         content: string,
         state: State,
         capture: Capture | null
-    ) => ASTNode
+    ) => ASTNodeArray
     readonly parseBlock: (
         parse: Parser,
         content: string,
         state: State,
         capture: Capture | null
-    ) => ASTNode
+    ) => ASTNodeArray
     readonly markdownToReact: (
         source: string,
         state?: State | null | undefined
@@ -2300,19 +2471,19 @@ type Exports = {
         source: string,
         state: State,
         capture: Capture | null
-    ) => Array<SingleASTNode>
+    ) => Array<ASTNode>
     readonly defaultBlockParse: (
         source: string,
         state?: State | null | undefined
-    ) => Array<SingleASTNode>
+    ) => Array<ASTNode>
     readonly defaultInlineParse: (
         source: string,
         state?: State | null | undefined
-    ) => Array<SingleASTNode>
+    ) => Array<ASTNode>
     readonly defaultImplicitParse: (
         source: string,
         state?: State | null | undefined
-    ) => Array<SingleASTNode>
+    ) => Array<ASTNode>
     readonly defaultReactOutput: ReactOutput
     readonly defaultHtmlOutput: HtmlOutput
     readonly preprocess: (source: string) => string
@@ -2363,8 +2534,8 @@ export type {
 
     // Individual Rule fields:
     Capture,
-    MatchFunction,
-    ParseFunction,
+    MatchRuleFunction,
+    ParseRuleFunction,
     NodeOutput,
     ArrayNodeOutput,
     ReactNodeOutput,
@@ -2378,7 +2549,7 @@ export type {
     Rules,
     ReactRules,
     HtmlRules,
-    SingleASTNode,
+    ASTNode,
 
     //
     DefaultRules,
@@ -2387,15 +2558,22 @@ export type {
     TextInOutRule,
 }
 
-var SimpleMarkdown: Exports = {
+//var SimpleMarkdown: Exports = {
+export const SimpleMarkdown = {
+    // constants
+    LIST_CLASSNAME_PREFIX: LIST_CLASSNAME_PREFIX,
+
+    // rules
     defaultRules: defaultRules,
     parserFor: parserFor,
     outputFor: outputFor,
 
+    genParseRuleResult: genParseRuleResult,
+
     inlineRegex: inlineRegex,
     blockRegex: blockRegex,
     anyScopeRegex: anyScopeRegex,
-    parseInline: parseInline,
+    nestedParseInline: nestedParseInline,
     parseBlock: parseBlock,
 
     // default wrappers:
@@ -2423,22 +2601,22 @@ var SimpleMarkdown: Exports = {
     reactFor: reactFor,
     htmlFor: htmlFor,
 
-    defaultParse: function (...args) {
+    defaultParse: function (...args: any[]) {
         if (typeof console !== "undefined") {
             console.warn(
                 "defaultParse is deprecated, please use `defaultImplicitParse`"
             )
         }
-        // @ts-expect-error - Argument of type 'any[]' is not assignable to parameter of type '[node: ASTNode, state?: State | null | undefined]'. Target requires 1 element(s) but source may have fewer.
+        // @ts-expect-error - Argument of type 'any[]' is not assignable to parameter of type '[node: ASTNodeArray, state?: State | null | undefined]'. Target requires 1 element(s) but source may have fewer.
         return defaultImplicitParse.apply(null, args)
     },
-    defaultOutput: function (...args) {
+    defaultOutput: function (...args: any[]) {
         if (typeof console !== "undefined") {
             console.warn(
                 "defaultOutput is deprecated, please use `defaultReactOutput`"
             )
         }
-        // @ts-expect-error - Argument of type 'any[]' is not assignable to parameter of type '[node: ASTNode, state?: State | null | undefined]'. Target requires 1 element(s) but source may have fewer.
+        // @ts-expect-error - Argument of type 'any[]' is not assignable to parameter of type '[node: ASTNodeArray, state?: State | null | undefined]'. Target requires 1 element(s) but source may have fewer.
         return defaultReactOutput.apply(null, args)
     },
 }

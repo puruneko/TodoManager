@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react"
 
 import SimpleMarkdown from "./simple-markdown/simple-markdown"
 import type * as SimpleMarkdownType from "./simple-markdown/simple-markdown"
-import { genParseRuleResult } from "./simple-markdown/simple-markdown"
 
 //https://github.com/suren-atoyan/monaco-react
 import MonacoEditor from "@monaco-editor/react"
@@ -13,6 +12,8 @@ import * as monaco from "monaco-editor"
 //https://www.measurethat.net/Benchmarks/Show/25816/0/markdown-performance-comparison-2023-06-23-2
 import { textBench } from "./sampleText"
 import { textTask } from "./sampleText2"
+
+import { getHier, Hier } from "./hier"
 
 //
 type ParserAndOutputRule = SimpleMarkdownType.ParserRule &
@@ -60,6 +61,7 @@ function App() {
     const defaultValue = textTask
     const [text, setText] = useState(defaultValue)
     const [Preview, setPreview] = useState(<></>)
+    const [hier, setHier] = useState([])
     const textareaRef = useRef<any>()
     const previewWrapperRef = useRef<any>()
 
@@ -202,6 +204,18 @@ function App() {
             console.log("--------text changed-------")
             console.log("  >>>parsing...")
             const syntaxTree = parseRef.current(text, { inline: false })
+            //
+            const _hier = getHier(
+                syntaxTree,
+                [{ type: "li", liBullet: "-" }],
+                [
+                    {
+                        type: "heading",
+                    },
+                ]
+            )
+            setHier(_hier)
+            console.log(_hier)
             console.log("  <<<parsing END")
             console.log("  >>>outputting...")
             const rOutput = outputAsReactRef.current(syntaxTree)
@@ -411,6 +425,33 @@ function App() {
                     {Preview}
                 </div>
             </div>
+            <DebugElem hier={hier} />
+        </div>
+    )
+}
+
+const DebugElem = ({ hier }: { hier: Hier[] }) => {
+    const showHier = (hier: Hier[]) => {
+        if (hier.length == 0) {
+            return <></>
+        }
+        return (
+            <ul>
+                {hier.map((h: Hier) => {
+                    return (
+                        <li>
+                            <span>{h.text}</span>
+                            {showHier(h.children)}
+                        </li>
+                    )
+                })}
+            </ul>
+        )
+    }
+    return (
+        <div>
+            <h3>階層構造のパース</h3>
+            {showHier(hier)}
         </div>
     )
 }

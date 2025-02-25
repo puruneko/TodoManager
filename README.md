@@ -19,10 +19,10 @@ fork for parse processing.
         -   [ ] スクロール sync
         -   [ ] 内部リンク機能
         -   [ ] スクロールジャンプ機能
-    -   [WIP] エディタの選別
+    -   [x] エディタの選別
         -   [ ] textarea で OK なのか？（コンテキストメニューとか出せるか？）
         -   [ ] ほかのエディタ OSS も触ってみる
-        -   [WIP] monaco を使ってみる。できるか確かめる
+        -   [x] monaco を使ってみる。できるか確かめる
             -   [x] text selection
                 -   mdPos<->monaca.positionAt で変換
             -   [ ] scroll sync
@@ -37,6 +37,12 @@ fork for parse processing.
                 -   レンダリング後からパースする方法はタスク階層構造の計算がレンダリングに依存することになり処理が増えるなどなどよろしくないので、syntaxTree から計算したい
                     -   syntaxTree は HTML 表示に寄った階層表現なので（reactElement もそうだが）意味のとして階層構造に変換するのが大変そう・・・。しかしこの変換は必須なので、工夫して対処する必要あり。
                         -   案としては li と pos 対応を利用して MD 本文からテキスト部分を抽出
+                            -   NG。pos は MD 修飾文字列も取り込んでしまうため
+                        -   [WIP] SyntaxTree から階層構造をパース
+                            -   [x] li
+                            -   [WIP] heading は syntaxTree では level でネストされていないので、パース時にネスト構造に直す
+                        -   [　]　 li や heading の innerText のパース
+                            -   children の type:text を再帰で拾ってくればよさそう
         -   [ ] タスクの階層構造化
     -   [ ] 対応していない記法の実装
 
@@ -48,6 +54,7 @@ fork for parse processing.
 -   改善関連
 
     -   [ ] list パース実装の一般化
+    -   [ ] listType と liType の別定義
 
 -   aaa
     -   bbb

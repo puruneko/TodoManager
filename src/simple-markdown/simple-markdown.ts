@@ -29,17 +29,32 @@ type Attr = string | number | boolean | null | undefined
 
 type MDPosition = [number, number]
 
-type ASTNode = {
+type StrictASTNode = {
     type: string
+    inline: boolean
     pos: MDPosition
     text: string
-    children: ASTNode | Array<ASTNode>
+    children: ASTNodeArray //ASTNode | Array<ASTNode>
     key?: string
     name?: string
-    [key: string]: any
 }
 
-type ParseRuleResult = Pick<ASTNode, "type" | "text" | "children"> & {
+type ASTNode = StrictASTNode & { [key: string]: any }
+
+type ASTLikeNode<T> = ASTNode & T
+
+/*
+type UnTypedASTNode = {
+    [key: string]: any
+}
+*/
+
+type ASTNodeArray = Array<ASTNode> //ASTNode | Array<ASTNode>
+
+type ParseRuleResult = Pick<
+    ASTNode,
+    "type" | "inline" | "text" | "children"
+> & {
     [key: string]: any
 }
 
@@ -51,6 +66,7 @@ const genParseRuleResult = ({
     let parseResult: ParseRuleResult = {
         ...options,
         type,
+        inline: "inline" in options ? (options["inline"] as boolean) : true,
         text: "text" in options ? (options["text"] as string) : "",
         children:
             "children" in options ? (options["children"] as ASTNodeArray) : [],
@@ -63,14 +79,19 @@ const genFragmentParseRuleResult = (options?: { [key: string]: any }) => {
         type: "fragment",
     })
 }
-
-/*
-type UnTypedASTNode = {
-    [key: string]: any
+const toASTNodeFromParseRuleReslt = <T = ASTNode>(
+    parseRuleResult: ParseRefRuleResult,
+    {
+        pos,
+        ...options
+    }: Pick<ASTLikeNode<T>, "pos"> & Partial<Omit<ASTLikeNode<T>, "pos">>
+): ASTLikeNode<T> => {
+    return {
+        ...parseRuleResult,
+        ...options,
+        pos,
+    } as ASTLikeNode<T>
 }
-*/
-
-type ASTNodeArray = Array<ASTNode> //ASTNode | Array<ASTNode>
 
 type ReactElement = ReactTypes.ReactElement<any>
 type ReactElements = ReactTypes.ReactNode
@@ -597,22 +618,19 @@ biteStringLength:${biteStringLength}`
             // their parsed node if they would like to, so that
             // there can be a single output function for all links,
             // even if there are several rules to parse them.
-            const essintialParams = {
-                pos:
-                    parsed.pos && parsed.pos[0] >= 0 && parsed.pos[1] >= 0
-                        ? parsed.pos
-                        : getPosition(
-                              state.posGlobal,
-                              posLocal,
-                              biteStringLength
-                          ),
-                key: parsed.key || state.parseNumber,
-            }
-            const astNode: ASTNode = {
-                ...parsed,
-                ...essintialParams,
-            }
-            ParsedResultASTNodeArray.push(astNode)
+            ParsedResultASTNodeArray.push(
+                toASTNodeFromParseRuleReslt(parsed, {
+                    pos:
+                        parsed.pos && parsed.pos[0] >= 0 && parsed.pos[1] >= 0
+                            ? parsed.pos
+                            : getPosition(
+                                  state.posGlobal,
+                                  posLocal,
+                                  biteStringLength
+                              ),
+                    key: parsed.key || state.parseNumber,
+                })
+            )
 
             /*
             console.debug(
@@ -655,6 +673,26 @@ biteStringLength:${biteStringLength}`
     }
 
     return outerParse
+}
+
+const getInnerText = (
+    rootASTNodeArray: ASTNodeArray | ASTNode,
+    recursive: boolean = false
+): string => {
+    let text = ""
+    let arr = Array.isArray(rootASTNodeArray)
+        ? rootASTNodeArray
+        : [rootASTNodeArray]
+    for (let node of arr) {
+        if (node.type === "text") {
+            text += node.text
+            text += getInnerText(node.children)
+        }
+        if (node.inline || recursive) {
+            text += getInnerText(node.children)
+        }
+    }
+    return text.trimEnd()
 }
 
 // Creates a match function for an inline scoped element from a regex
@@ -862,16 +900,24 @@ var ignoreCapture = function (): ParseRuleResult {
 // className
 const LIST_CLASSNAME_PREFIX = "preview-list"
 // recognize a `*` `-`, `+`, `1.`, `2.`... list bullet
-const NORMAL_LIST_BULLET = "[*+-]"
+const NORMAL_LIST_BULLET_MINUS = "-"
+const NORMAL_LIST_BULLET_PLUS = "+"
+const NORMAL_LIST_BULLET_ASTERISK = "*"
+const NORMAL_LIST_BULLET = `[${[
+    NORMAL_LIST_BULLET_MINUS,
+    NORMAL_LIST_BULLET_PLUS,
+    NORMAL_LIST_BULLET_ASTERISK,
+].join("")}]`
 const ORDERED_LIST_BULLET = "\\d+\\."
 const TASK_LIST_BULLET = "\\[[^\\[\\]]+?\\]"
 const QUOTE_LIST_BULLET = "[>]"
 const NORMAL_WITH_TASK_LIST_BULLET = `${NORMAL_LIST_BULLET}(?: +${TASK_LIST_BULLET})?`
 var LIST_BULLETS = `(?:${NORMAL_WITH_TASK_LIST_BULLET}|${ORDERED_LIST_BULLET}|${QUOTE_LIST_BULLET})`
-const IS_NORMAL_LIST_R = new RegExp(NORMAL_LIST_BULLET)
-const IS_ORDERED_LIST_R = new RegExp(ORDERED_LIST_BULLET)
-const IS_TASK_LIST_R = new RegExp(`.*?${TASK_LIST_BULLET}`)
-const IS_QUOTE_LIST_R = new RegExp(`.*?${QUOTE_LIST_BULLET}`)
+const IS_NORMAL_LIST_R = new RegExp(`\s*${NORMAL_LIST_BULLET}\s*`)
+const IS_ORDERED_LIST_R = new RegExp(`\s*${ORDERED_LIST_BULLET}\s*`)
+const IS_TASK_LIST_R = new RegExp(`\s*?${TASK_LIST_BULLET}\s*`)
+const IS_QUOTE_LIST_R = new RegExp(`\s*?${QUOTE_LIST_BULLET}\s*`)
+//TODO
 type ListType = "" | "normal" | "ordered" | "task" | "quote"
 const getListType = (bullet: string): ListType => {
     let listType: ListType = ""
@@ -885,6 +931,28 @@ const getListType = (bullet: string): ListType => {
         listType = "normal"
     }
     return listType
+}
+//TODO
+type LiType =
+    | ""
+    | "ordered"
+    | "task"
+    | "quote"
+    | "normal"
+    | "normal_plus"
+    | "normal_asterisk"
+const getLiType = (bullet: string): LiType => {
+    let liType: LiType = ""
+    if (!!IS_TASK_LIST_R.exec(bullet)) {
+        liType = "task"
+    } else if (!!IS_ORDERED_LIST_R.exec(bullet)) {
+        liType = "ordered"
+    } else if (!!IS_QUOTE_LIST_R.exec(bullet)) {
+        liType = "quote"
+    } else if (!!IS_NORMAL_LIST_R.exec(bullet)) {
+        liType = "normal"
+    }
+    return liType
 }
 const toBulletTypeFromString = (_str: string) => {
     let bulletType: string = ""
@@ -900,11 +968,9 @@ const toBulletTypeFromString = (_str: string) => {
     }
     return bulletType
 }
-type ListItemContent = {
-    itemListType: ListType
-    itemBullet: string
-    itemNodes: ASTNodeArray
-    pos: MDPosition
+type LiASTNode = StrictASTNode & {
+    liType: LiType
+    liBullet: string
 }
 //
 const LIST_HEAD = "[ ]*" //"[ \t]*"
@@ -1089,6 +1155,7 @@ var TABLES = (function () {
 
             return genParseRuleResult({
                 type: "table",
+                inline: false,
                 header: header,
                 align: align,
                 cells: cells,
@@ -1200,6 +1267,7 @@ const default_headingRule: DefaultRules["heading"] = {
         const param = Object.assign({}, { capture, nestedParse, state })
         return genParseRuleResult({
             type: "heading",
+            inline: false,
             level: capture[1].length,
             //children: nestedParseInline(
             children: nestedParseInline(
@@ -1233,6 +1301,7 @@ const default_lheadingRule: DefaultRules["lheading"] = {
         const param = Object.assign({}, { capture, nestedParse, state })
         return genParseRuleResult({
             type: "heading",
+            inline: false,
             level: capture[2] === "=" ? 1 : 2,
             children: nestedParseInline(
                 nestedParse,
@@ -1264,6 +1333,7 @@ const default_codeBlockRule: DefaultRules["codeBlock"] = {
         var text = capture[0].replace(/^    /gm, "").replace(/\n+$/, "")
         return genParseRuleResult({
             type: "codeBlock",
+            inline: false,
             lang: undefined,
             text,
         })
@@ -1300,6 +1370,7 @@ const default_fenceRule: DefaultRules["fence"] = {
         const param = Object.assign({}, { capture, nestedParse, state })
         return genParseRuleResult({
             type: "codeBlock",
+            inline: false,
             lang: capture[2] || undefined,
             text: capture[3],
         })
@@ -1315,6 +1386,7 @@ const default_blockQuoteRule: DefaultRules["blockQuote"] = {
         var text = capture[0].replace(/^ *> ?/gm, "")
         return genParseRuleResult({
             type: "blockQuote",
+            inline: false,
             children: nestedParse(text, state, capture),
         })
     },
@@ -1355,8 +1427,8 @@ const default_listRule: DefaultRules["list"] = {
         const param = Object.assign({}, { capture, nestedParse, state })
         const source = capture[0]
         const bullet = capture[2]
-        const listType = getListType(bullet)
-        const start = listType === "ordered" ? +bullet : undefined
+        const liType = getLiType(bullet)
+        const start = liType === "ordered" ? +bullet : undefined
         // @ts-expect-error - TS2322 - Type 'RegExpMatchArray | null' is not assignable to type 'string[]'.
         var items: Array<string> = source
             .replace(LIST_BLOCK_END_R, "\n")
@@ -1370,7 +1442,10 @@ const default_listRule: DefaultRules["list"] = {
         //リスト接頭文字列から始まる文字列ごとに行内の文字列を再帰的にパース
         //
         let posLocal = 0
-        var itemsContent = items.map(function (item: string, i: number) {
+        const liArray: ASTNodeArray = items.map(function (
+            item: string,
+            i: number
+        ) {
             // We need to see how far indented this item is:
             var prefixCapture = LIST_ITEM_PREFIX_R.exec(item)
             //orig//var space = prefixCapture ? prefixCapture[0].length : 0
@@ -1382,9 +1457,9 @@ const default_listRule: DefaultRules["list"] = {
                     ? new RegExp("^ {" + spaceLength + "}", "")
                     : new RegExp("")
 
-            // item listType
-            const itemBullet = prefixCapture ? prefixCapture[2] : ""
-            const itemListType = getListType(itemBullet)
+            // item liType
+            const liBullet = prefixCapture ? prefixCapture[2] : ""
+            const childLiType = getLiType(liBullet)
 
             // Before processing the item, we need a couple things
             const listBlockContent = item.replace(spaceRegex, "") // remove indents on trailing lines:
@@ -1438,17 +1513,26 @@ const default_listRule: DefaultRules["list"] = {
                 )
             }
 
-            var itemNodes = nestedParse(adjustedInnerContent, state, capture)
-            let itemContent: ListItemContent = {
-                itemListType,
-                itemBullet: itemBullet,
-                itemNodes,
-                pos: getPosition(
-                    state.posGlobal,
-                    posLocal + spaceLength,
-                    listBlockContent.length
-                ),
-            }
+            var children_children = nestedParse(
+                adjustedInnerContent,
+                state,
+                capture
+            )
+            let liASTNode: LiASTNode = toASTNodeFromParseRuleReslt<LiASTNode>(
+                genParseRuleResult({
+                    type: "li",
+                    children: children_children,
+                }),
+                {
+                    pos: getPosition(
+                        state.posGlobal,
+                        posLocal + spaceLength,
+                        listBlockContent.length
+                    ),
+                    liType: childLiType,
+                    liBullet: liBullet,
+                }
+            )
             /*
             console.debug(
                 "itemContent",
@@ -1468,46 +1552,45 @@ const default_listRule: DefaultRules["list"] = {
             state._list = oldStateList
             posLocal += item.length
             //
-            return itemContent
+            return liASTNode
         })
 
         return genParseRuleResult({
             type: "list",
-            listType: listType,
+            inline: false,
+            children: liArray,
+            liType: liType,
             bullet: bullet,
             start: start,
-            items: itemsContent,
         })
     },
     react: function (node, nestedOutput, state) {
         let wrapperGroups: {
-            listType: ListType
+            liType: LiType
             pos: MDPosition
             children: ReactElement[]
         }[] = [
             {
-                listType: node.listType,
+                liType: node.liType,
                 pos: node.pos,
                 children: [],
             },
         ]
-        let prevListType: ListType = node.listType
-        for (let i = 0; i < node.items.length; i++) {
-            const itemContent = node.items[i]
-            const itemListType = itemContent.itemListType
-                ? itemContent.itemListType
-                : node.listType
+        let prevLiType: LiType = node.liType
+        for (let i = 0; i < node.children.length; i++) {
+            const liNode: LiASTNode = node.children[i] as LiASTNode
+            const liType = liNode.liType ? liNode.liType : node.liType
             //
             let elem: ReactElement
             //ordered
-            if (itemListType === "ordered") {
+            if (liType === "ordered") {
                 elem = reactElement("li", `${state.key}.${i}`, {
-                    "data-pos": itemContent.pos,
-                    children: nestedOutput(itemContent.itemNodes, state),
+                    "data-pos": liNode.pos,
+                    children: nestedOutput(liNode.children, state),
                 })
             }
             //task
-            else if (itemListType === "task") {
+            else if (liType === "task") {
                 const checkboxFunc = (e: React.MouseEvent) => {
                     e.preventDefault()
                     const _elem = e.target as HTMLElement
@@ -1515,66 +1598,63 @@ const default_listRule: DefaultRules["list"] = {
                     e.stopPropagation()
                 }
                 const taskStatus =
-                    itemContent.itemBullet.indexOf("[x]") >= 0 ? "checked" : ""
+                    liNode.liBullet.indexOf("[x]") >= 0 ? "checked" : ""
                 elem = reactElement("li", `${state.key}.${i}`, {
                     className: `${taskStatus}`,
                     //onClick: checkboxFunc,
-                    "data-pos": itemContent.pos,
-                    children: nestedOutput(itemContent.itemNodes, state),
+                    "data-pos": liNode.pos,
+                    children: nestedOutput(liNode.children, state),
                 })
             }
             //quote
-            else if (itemListType === "quote") {
+            else if (liType === "quote") {
                 elem = reactElement("li", `${state.key}.${i}`, {
-                    "data-pos": itemContent.pos,
+                    "data-pos": liNode.pos,
                     children: reactElement("code", `${state.key}.${i}`, {
-                        "data-pos": itemContent.pos,
-                        children: nestedOutput(itemContent.itemNodes, state),
+                        "data-pos": liNode.pos,
+                        children: nestedOutput(liNode.children, state),
                     }),
                 })
             }
             //normal
             else {
-                let bulletName = IS_NORMAL_LIST_R.exec(
-                    itemContent.itemBullet
-                )?.[0]
+                let bulletName = IS_NORMAL_LIST_R.exec(liNode.liBullet)?.[0]
                 elem = reactElement("li", `${state.key}.${i}`, {
-                    className: `${LIST_CLASSNAME_PREFIX}-${itemListType}-${bulletName}`,
-                    "data-pos": itemContent.pos,
-                    children: nestedOutput(itemContent.itemNodes, state),
+                    className: `${LIST_CLASSNAME_PREFIX}-${liType}-${bulletName}`,
+                    "data-pos": liNode.pos,
+                    children: nestedOutput(liNode.children, state),
                 })
             }
 
             // listの共通クラス付与
-            elem.props.className = `${LIST_CLASSNAME_PREFIX} ${LIST_CLASSNAME_PREFIX}-${itemListType} ${elem.props.className}`
+            elem.props.className = `${LIST_CLASSNAME_PREFIX} ${LIST_CLASSNAME_PREFIX}-${liType} ${elem.props.className}`
 
             //
             //update
             //
-            if (itemListType !== prevListType) {
+            if (liType !== prevLiType) {
                 wrapperGroups.push(
                     Object.assign(
                         {},
                         {
-                            listType: itemListType,
-                            pos: Object.assign([], itemContent.pos),
+                            liType: liType,
+                            pos: Object.assign([], liNode.pos),
                             children: [elem],
                         }
                     )
                 )
             } else {
                 wrapperGroups[wrapperGroups.length - 1].children.push(elem)
-                wrapperGroups[wrapperGroups.length - 1].pos[1] =
-                    itemContent.pos[1]
+                wrapperGroups[wrapperGroups.length - 1].pos[1] = liNode.pos[1]
             }
-            prevListType = itemContent.itemListType
+            prevLiType = liNode.liType
         }
 
         return React.createElement(React.Fragment, {
             children: wrapperGroups.map((group, i) => {
-                const wrapperType = group.listType === "ordered" ? "ol" : "ul"
+                const wrapperType = group.liType === "ordered" ? "ol" : "ul"
                 const comment =
-                    group.listType === "ordered"
+                    group.liType === "ordered"
                         ? "ordered-start-hasnot-work-yet"
                         : undefined
                 return reactElement(wrapperType, `${state.key}.${i}`, {
@@ -1592,7 +1672,7 @@ const default_listRule: DefaultRules["list"] = {
             })
             .join("")
 
-        var listTag = node.listType == "ordered" ? "ol" : "ul"
+        var listTag = node.liType == "ordered" ? "ol" : "ul"
         var attributes = {
             start: node.start,
         }
@@ -1643,6 +1723,7 @@ const default_defRule: DefaultRules["def"] = {
         // for debugging only.
         return genParseRuleResult({
             type: "def",
+            inline: false,
             def: def,
             target: target,
             title: title,
@@ -2532,6 +2613,10 @@ export type {
     // subject to change or change names. Again, they shouldn't be necessary,
     // but if they are I'd love to hear how so I can better support them!
 
+    //ASTNode
+    ASTNode,
+    ASTNodeArray,
+
     // Individual Rule fields:
     Capture,
     MatchRuleFunction,
@@ -2549,7 +2634,6 @@ export type {
     Rules,
     ReactRules,
     HtmlRules,
-    ASTNode,
 
     //
     DefaultRules,
@@ -2575,6 +2659,8 @@ export const SimpleMarkdown = {
     anyScopeRegex: anyScopeRegex,
     nestedParseInline: nestedParseInline,
     parseBlock: parseBlock,
+
+    getInnerText: getInnerText,
 
     // default wrappers:
     markdownToReact: markdownToReact,

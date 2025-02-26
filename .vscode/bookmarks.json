@@ -1,0 +1,84 @@
+{
+	"files": [
+		{
+			"path": "src/simple-markdown/simple-markdown.ts",
+			"bookmarks": [
+				{
+					"line": 31,
+					"column": 22,
+					"label": ""
+				},
+				{
+					"line": 419,
+					"column": 0,
+					"label": "nestedParse"
+				},
+				{
+					"line": 677,
+					"column": 22,
+					"label": ""
+				},
+				{
+					"line": 900,
+					"column": 44,
+					"label": ""
+				},
+				{
+					"line": 1402,
+					"column": 48,
+					"label": "list"
+				},
+				{
+					"line": 2080,
+					"column": 44,
+					"label": "em"
+				},
+				{
+					"line": 2216,
+					"column": 48,
+					"label": "text"
+				},
+				{
+					"line": 2271,
+					"column": 34,
+					"label": ""
+				},
+				{
+					"line": 2382,
+					"column": 32,
+					"label": ""
+				},
+				{
+					"line": 2603,
+					"column": 13,
+					"label": ""
+				},
+				{
+					"line": 2645,
+					"column": 31,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "src/App.tsx",
+			"bookmarks": [
+				{
+					"line": 169,
+					"column": 38,
+					"label": ""
+				},
+				{
+					"line": 222,
+					"column": 47,
+					"label": ""
+				},
+				{
+					"line": 275,
+					"column": 47,
+					"label": ""
+				}
+			]
+		}
+	]
+}

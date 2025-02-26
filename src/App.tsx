@@ -10,8 +10,8 @@ import MonacoEditor from "@monaco-editor/react"
 import * as monaco from "monaco-editor"
 
 //https://www.measurethat.net/Benchmarks/Show/25816/0/markdown-performance-comparison-2023-06-23-2
-import { textBench } from "./sampleText"
-import { textTask } from "./sampleText2"
+import { textBench } from "./_dev/sampleText"
+import { textTask } from "./_dev/sampleText2"
 
 import { getHier, Hier } from "./hier"
 
@@ -61,7 +61,7 @@ function App() {
     const defaultValue = textTask
     const [text, setText] = useState(defaultValue)
     const [Preview, setPreview] = useState(<></>)
-    const [hier, setHier] = useState([])
+    const [hier, setHier] = useState<Hier[]>([])
     const textareaRef = useRef<any>()
     const previewWrapperRef = useRef<any>()
 

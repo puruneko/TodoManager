@@ -19,7 +19,7 @@ fork for parse processing.
     - 機能
     - 非機能
 
-- 機能部分
++ 機能部分
 
   - [x] MD エディタ（最低限）
   - [x] preview 機能（最低限）
@@ -45,37 +45,43 @@ fork for parse processing.
         - ->とりあえず OK
       - [x] bundle size
         - ->とりあえず OK（monaca+今の構成こみこみで約 200kB）
-  - タスク関連
-    - [ ] タスクの階層化のルールを作る
-    - [ ] タスクの抽出機能
+  + タスク関連
+    - [WIP] タスクの階層化のルールを作る
+      - 「-」「*」「+」で役割を分ける？
+        - 打つ手間が増えそう。面倒・・・
+        - 基本はheadingを見出しにして、リスト「-」は見出しにしない。リストを見出しにする場合のみ「*」or「+」にするのはどうか
+          - task-listは標準で見出し？ 
+          - 「-」を「+」にするショートカットキーがあると便利
+    - [x] タスクの抽出機能
       - li などの文字部分を抜き出すのが難しい
         - レンダリング後からパースする方法はタスク階層構造の計算がレンダリングに依存することになり処理が増えるなどなどよろしくないので、syntaxTree から計算したい
           - syntaxTree は HTML 表示に寄った階層表現なので（reactElement もそうだが）意味のとして階層構造に変換するのが大変そう・・・。しかしこの変換は必須なので、工夫して対処する必要あり。
             - 案としては li と pos 対応を利用して MD 本文からテキスト部分を抽出
               - NG。pos は MD 修飾文字列も取り込んでしまうため
-            - [WIP] SyntaxTree から階層構造をパース
+            - [x] SyntaxTree から階層構造をパース
               - [x] li
-              - [WIP] heading は syntaxTree では level でネストされていないので、パース時にネスト構造に直す
+              - [x] heading は syntaxTree では level でネストされていないので、パース時にネスト構造に直す
             - [x]　 li や heading の innerText のパース
               - children の type:text を再帰で拾ってくればよさそう
     - [ ] タスクの階層構造化
   - [ ] 対応していない記法の実装
 
-- バグ関連
++ バグ関連
 
   - [ ] state.parseNumber を key とした react.key がおかしい
   - [ ] App.ts 側の RuleType のエラー解消
 
-- 改善関連
++ 改善関連
 
   - [ ] list パース実装の一般化
   - [ ] listType と liType の別定義
 
-- aaa
-  - bbb
-  1. aaaa
-  - ccc
-  - ddd
++ aaa{+}
+  - bbb{-}
+  1. aaaa{o}
+  + ccc{+}
+    - ccc{-}
+  - ddd{-}
 
 # changed settings
 

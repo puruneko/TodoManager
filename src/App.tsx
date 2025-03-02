@@ -12,6 +12,7 @@ import * as monaco from "monaco-editor"
 //https://www.measurethat.net/Benchmarks/Show/25816/0/markdown-performance-comparison-2023-06-23-2
 import { textBench } from "./_dev/sampleText"
 import { textTask } from "./_dev/sampleText2"
+import README from "./../README.md?raw"
 
 import { getHier, Hier } from "./hier"
 
@@ -29,36 +30,8 @@ type ParserAndOutputRule2 =
     | SimpleMarkdownType.TextInOutRule
 
 function App() {
-    ///////////////0         1         2         3
-    ///////////////0123456789012345678901234567890
-    const text1 = "- de*af__u__la*t value +exTag"
-    const text2 = `
-# heading1
-
-- aaaa
-    - bbbbb31
-    - cccccc
-    > ddddd
-        - eeeeeeee +mytag
-    1. 123456789
-    - ffffff
-        - FFFFFFFF
-            - f111FfFfFfF
-            - f222FfFfFfF
-        - GGGGG
-    1. 987654321
-        1. uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu
-        1. vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-        1. wwwwwww*WW*wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
-    1. asdfghjk
-- [ ] gggggg
-- [x] g2ggggg
-- hhhh
-    - pppppp
-    qqqqqqqq
-    `
     //
-    const defaultValue = textTask
+    const defaultValue = README
     const [text, setText] = useState(defaultValue)
     const [Preview, setPreview] = useState(<></>)
     const [hier, setHier] = useState<Hier[]>([])
@@ -128,7 +101,7 @@ function App() {
             }
             return (
                 <span style={{ color: "red" }} onClick={tagFunc}>
-                    (@{node.pos}){output(node.children)}
+                    (@{node.posrange}){output(node.children)}
                 </span>
             )
         },
@@ -207,7 +180,11 @@ function App() {
             //
             const _hier = getHier(
                 syntaxTree,
-                [{ type: "li", liBullet: "-" }],
+                [
+                    { type: "li", liBullet: "-" },
+                    { type: "li", liBullet: "- [ ]" },
+                    { type: "li", liBullet: "- [x]" },
+                ],
                 [
                     {
                         type: "heading",
@@ -253,17 +230,19 @@ function App() {
     //
     const focusSelectedMDText = (e: Event) => {
         const _elem = e.target as HTMLElement
-        const pos_str = _elem.dataset.pos
-        const pos = pos_str ? pos_str.split(",").map(Number) : null
-        if (pos && textareaRef.current) {
+        const posrange_str = _elem.dataset.posrange
+        const posrange = posrange_str
+            ? posrange_str.split(",").map(Number)
+            : null
+        if (posrange && textareaRef.current) {
             /*
             //以下４行はカーソル行にスクロール移動するための儀式
-            textareaRef.current.selectionStart = pos[0]
-            textareaRef.current.selectionEnd = pos[0]
+            textareaRef.current.selectionStart = posrange[0]
+            textareaRef.current.selectionEnd = posrange[0]
             textareaRef.current.blur()
             textareaRef.current.focus()
             //
-            textareaRef.current.setSelectionRange(pos[0], pos[1])
+            textareaRef.current.setSelectionRange(posrange[0], posrange[1])
             */
             if (previewWrapperRef.current) {
                 console.debug(
@@ -281,46 +260,51 @@ function App() {
                     _elem.offsetTop - previewWrapperRef.current.offsetTop
                 )
             }
-            const stringPositionToMonacoPosition = (posPoint: number) => {
+            const stringPositionRangeToMonacoPositionRange = (
+                posrangePoint: number
+            ) => {
                 let res = null
                 if (textareaRef.current) {
                     res = textareaRef.current
                         .getModel()
-                        ?.getPositionAt(posPoint)
+                        ?.getPositionAt(posrangePoint)
                 }
                 return res
             }
-            const monacoPosition = stringPositionToMonacoPosition(pos[0])
-            if (monacoPosition) {
-                textareaRef.current.setPosition(monacoPosition)
+            const monacoPositionRange =
+                stringPositionRangeToMonacoPositionRange(posrange[0])
+            if (monacoPositionRange) {
+                textareaRef.current.setPosition(monacoPositionRange)
                 textareaRef.current.setScrollTop(
                     textareaRef.current.getTopForPosition(
-                        monacoPosition.lineNumber - 3,
-                        monacoPosition.column
+                        monacoPositionRange.lineNumber - 3,
+                        monacoPositionRange.column
                     )
                 )
                 textareaRef.current.focus()
             }
-            console.log("position", monacoPosition)
+            console.log("positionRange", monacoPositionRange)
         }
     }
     const toggleTaskItemState = (e: Event) => {
         const _elem = e.target as HTMLElement
-        const pos_str = _elem.dataset.pos
-        const pos = pos_str ? pos_str.split(",").map(Number) : null
-        if (pos && textareaRef.current) {
+        const posrange_str = _elem.dataset.posrange
+        const posrange = posrange_str
+            ? posrange_str.split(",").map(Number)
+            : null
+        if (posrange && textareaRef.current) {
             //不要//_elem.classList.toggle("checked")
             let newValue = textareaRef.current.getValue()
-            let newSentence = newValue.substring(pos[0], pos[1])
+            let newSentence = newValue.substring(posrange[0], posrange[1])
             if (_elem.classList.contains("checked")) {
                 newSentence = newSentence.replace("[x]", "[ ]")
             } else {
                 newSentence = newSentence.replace("[ ]", "[x]")
             }
             newValue =
-                newValue.substring(0, pos[0]) +
+                newValue.substring(0, posrange[0]) +
                 newSentence +
-                newValue.substring(pos[1])
+                newValue.substring(posrange[1])
             textareaRef.current.setValue(newValue)
             console.log(
                 "task clicked",
@@ -440,7 +424,10 @@ const DebugElem = ({ hier }: { hier: Hier[] }) => {
                 {hier.map((h: Hier) => {
                     return (
                         <li>
-                            <span>{h.text}</span>
+                            <span>
+                                {`[${h.type}]`}
+                                {h.text}
+                            </span>
                             {showHier(h.children)}
                         </li>
                     )

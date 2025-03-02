@@ -9,57 +9,57 @@
 					"label": ""
 				},
 				{
-					"line": 423,
+					"line": 441,
 					"column": 0,
 					"label": "nestedParse"
 				},
 				{
-					"line": 646,
+					"line": 664,
 					"column": 22,
 					"label": ""
 				},
 				{
-					"line": 869,
+					"line": 887,
 					"column": 44,
 					"label": ""
 				},
 				{
-					"line": 1371,
+					"line": 1382,
 					"column": 48,
 					"label": "list"
 				},
 				{
-					"line": 1811,
+					"line": 1824,
 					"column": 20,
 					"label": "paragraph"
 				},
 				{
-					"line": 2050,
+					"line": 2063,
 					"column": 44,
 					"label": "em"
 				},
 				{
-					"line": 2186,
+					"line": 2199,
 					"column": 48,
 					"label": "text"
 				},
 				{
-					"line": 2241,
+					"line": 2254,
 					"column": 34,
 					"label": ""
 				},
 				{
-					"line": 2352,
+					"line": 2365,
 					"column": 32,
 					"label": ""
 				},
 				{
-					"line": 2573,
+					"line": 2586,
 					"column": 13,
 					"label": ""
 				},
 				{
-					"line": 2615,
+					"line": 2628,
 					"column": 31,
 					"label": ""
 				}
@@ -69,17 +69,17 @@
 			"path": "src/App.tsx",
 			"bookmarks": [
 				{
-					"line": 142,
+					"line": 143,
 					"column": 38,
 					"label": ""
 				},
 				{
-					"line": 199,
+					"line": 204,
 					"column": 47,
 					"label": ""
 				},
 				{
-					"line": 254,
+					"line": 255,
 					"column": 47,
 					"label": ""
 				}

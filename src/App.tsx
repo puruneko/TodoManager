@@ -7,7 +7,8 @@ import type * as SimpleMarkdownType from "./simple-markdown/simple-markdown"
 import MonacoEditor from "@monaco-editor/react"
 
 //https://microsoft.github.io/monaco-editor/docs.html
-import * as monaco from "monaco-editor"
+import monaco from "monaco-editor"
+import type monacoType from "monaco-editor"
 
 //https://www.measurethat.net/Benchmarks/Show/25816/0/markdown-performance-comparison-2023-06-23-2
 import { textBench } from "./_dev/sampleText"
@@ -35,7 +36,7 @@ function App() {
     const [text, setText] = useState(defaultValue)
     const [Preview, setPreview] = useState(<></>)
     const [hier, setHier] = useState<Hier[]>([])
-    const textareaRef = useRef<any>()
+    const textareaRef = useRef<monaco.editor.IStandaloneCodeEditor>()
     const previewWrapperRef = useRef<any>()
 
     let underlineRule: SimpleMarkdownType.DefaultRules["em"] = {
@@ -175,8 +176,12 @@ function App() {
     useEffect(
         function textChangedEffect() {
             console.log("--------text changed-------")
+            // CRLF->LF対応
+            const cleanedText = SimpleMarkdown.cleansingSource(text)
+            setText(cleanedText)
+            //
             console.log("  >>>parsing...")
-            const syntaxTree = parseRef.current(text, { inline: false })
+            const syntaxTree = parseRef.current(cleanedText, { inline: false })
             //
             const _hier = getHier(
                 syntaxTree,
@@ -226,6 +231,11 @@ function App() {
     ) => {
         textareaRef.current = editor
         textareaRef.current.onDidScrollChange(handleMonacoDidScrollChange)
+        const model = textareaRef.current.getModel()
+        if (model) {
+            // CRLF->LF対応
+            model.setEOL(monaco.editor.EndOfLineSequence.LF)
+        }
     }
     //
     const focusSelectedMDText = (e: Event) => {
@@ -235,15 +245,6 @@ function App() {
             ? posrange_str.split(",").map(Number)
             : null
         if (posrange && textareaRef.current) {
-            /*
-            //以下４行はカーソル行にスクロール移動するための儀式
-            textareaRef.current.selectionStart = posrange[0]
-            textareaRef.current.selectionEnd = posrange[0]
-            textareaRef.current.blur()
-            textareaRef.current.focus()
-            //
-            textareaRef.current.setSelectionRange(posrange[0], posrange[1])
-            */
             if (previewWrapperRef.current) {
                 console.debug(
                     "clicked element:",
@@ -310,7 +311,7 @@ function App() {
                 "task clicked",
                 _elem.dataset,
                 "==========\n",
-                textareaRef.current.value,
+                text,
                 "==========\n",
                 newValue,
                 "==========\n",

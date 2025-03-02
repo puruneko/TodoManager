@@ -295,15 +295,32 @@ type ParseRefRuleResult = ParseRuleResult & {
 // End TypeScript Definitions
 
 var CR_NEWLINE_R = /\r\n?/g
-//var TAB_R = /\t/g
+var TAB_R = /\t/g
 var FORMFEED_R = /\f/g
 
 /**
  * Turn various whitespace into easy-to-process whitespace
  */
+const cleansingSource = (
+    source: string,
+    formfeed = true,
+    newline = true,
+    tab = false
+) => {
+    let _source = source
+    if (formfeed) {
+        _source = _source.replace(FORMFEED_R, "")
+    }
+    if (newline) {
+        _source = _source.replace(CR_NEWLINE_R, "\n")
+    }
+    if (tab) {
+        _source = _source.replace(TAB_R, "    ")
+    }
+    return _source
+}
 var preprocess = function (source: string): string {
-    return source.replace(CR_NEWLINE_R, "\n").replace(FORMFEED_R, "")
-    //.replace(TAB_R, "    ")
+    return source //cleansingSource(source)
 }
 
 var populateInitialState = function (
@@ -2622,15 +2639,17 @@ export const SimpleMarkdown = {
     parserFor: parserFor,
     outputFor: outputFor,
 
-    genParseRuleResult: genParseRuleResult,
-
     inlineRegex: inlineRegex,
     blockRegex: blockRegex,
     anyScopeRegex: anyScopeRegex,
     nestedParseInline: nestedParseInline,
     parseBlock: parseBlock,
 
+    // utils of rules
+
+    genParseRuleResult: genParseRuleResult,
     getInnerText: getInnerText,
+    cleansingSource: cleansingSource,
 
     // default wrappers:
     markdownToReact: markdownToReact,

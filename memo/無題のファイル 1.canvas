@@ -1,0 +1,17 @@
+{
+	"nodes":[
+		{"id":"322bed9444cee515","x":-320,"y":-360,"width":250,"height":60,"type":"text","text":"horizontal"},
+		{"id":"7fbd82bfedcec096","x":40,"y":-360,"width":250,"height":60,"type":"text","text":"vartical"},
+		{"id":"abdb51637c7300c6","x":-337,"y":-220,"width":285,"height":200,"type":"text","text":"[GitHub - react-scheduler/react-big-schedule: React Big Schedule is a powerful and intuitive scheduler and resource planning solution built with React.](https://github.com/react-scheduler/react-big-schedule)"},
+		{"id":"91356bf20ff7e67f","x":10,"y":-220,"width":310,"height":120,"type":"text","text":"[GitHub - fullcalendar/fullcalendar-react: The official React Component for FullCalendar](https://github.com/fullcalendar/fullcalendar-react)"},
+		{"id":"d0ed583b2339541b","x":-5,"y":-40,"width":325,"height":170,"type":"text","text":"[ReactでGoolgeカレンダーっぽいものをなるべく簡単につくってみる。 | Katsuya Place](https://katsuya-place.com/react-fullcalendar/)"},
+		{"id":"cdbf7336760525b6","x":-115,"y":-480,"width":250,"height":60,"type":"text","text":"カレンダーライブラリ"}
+	],
+	"edges":[
+		{"id":"4c293ce2bd6e2382","fromNode":"322bed9444cee515","fromSide":"bottom","toNode":"abdb51637c7300c6","toSide":"top"},
+		{"id":"78a77f6fc24e19f4","fromNode":"7fbd82bfedcec096","fromSide":"bottom","toNode":"91356bf20ff7e67f","toSide":"top"},
+		{"id":"95c40b10213304bf","fromNode":"91356bf20ff7e67f","fromSide":"bottom","toNode":"d0ed583b2339541b","toSide":"top"},
+		{"id":"55d5c1835cbc6c1f","fromNode":"cdbf7336760525b6","fromSide":"bottom","toNode":"322bed9444cee515","toSide":"top"},
+		{"id":"88bb5071a2bfd2d7","fromNode":"cdbf7336760525b6","fromSide":"bottom","toNode":"7fbd82bfedcec096","toSide":"top"}
+	]
+}

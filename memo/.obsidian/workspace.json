@@ -1,0 +1,216 @@
+{
+  "main": {
+    "id": "845e2caf3d4b7f6e",
+    "type": "split",
+    "children": [
+      {
+        "id": "79eb3b08392b198a",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "01287c0a7f933db2",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "無題のファイル.canvas",
+                "viewState": {
+                  "x": -1.5,
+                  "y": 0,
+                  "zoom": 0
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "無題のファイル"
+            }
+          },
+          {
+            "id": "af3ff9ef9d7d98ea",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "無題のファイル.canvas",
+                "viewState": {
+                  "x": 0,
+                  "y": 0,
+                  "zoom": 0
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "無題のファイル"
+            }
+          },
+          {
+            "id": "e40d36bd99027f2c",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "無題のファイル 1.canvas",
+                "viewState": {
+                  "x": -8.5,
+                  "y": -175,
+                  "zoom": -0.08786214793456291
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "無題のファイル 1"
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "cc9b268cbf979c6d",
+    "type": "split",
+    "children": [
+      {
+        "id": "2607693025cd8f88",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "168b8dceb85f0661",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "ファイルエクスプローラ"
+            }
+          },
+          {
+            "id": "89e3d464b0860d34",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "検索"
+            }
+          },
+          {
+            "id": "43cffff94f12b226",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "ブックマーク"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "3e0de9cda2cd3ee4",
+    "type": "split",
+    "children": [
+      {
+        "id": "405105059bd7ed38",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "835410f9b4d4e597",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "無題のファイル 1.canvas",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "無題のファイル 1へのバックリンク"
+            }
+          },
+          {
+            "id": "025c7583029290e9",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "無題のファイル 1.canvas",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "無題のファイル 1からのアウトゴーイングリンク"
+            }
+          },
+          {
+            "id": "ba8b4bf708ef37b7",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "タグ"
+            }
+          },
+          {
+            "id": "e158eca3128587e9",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "無題のファイル 1.canvas",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "無題のファイル 1のアウトライン"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:クイックスイッチャーを開く": false,
+      "graph:グラフビューを開く": false,
+      "canvas:新規キャンバスを作成": false,
+      "daily-notes:今日のデイリーノートを開く": false,
+      "templates:テンプレートを挿入": false,
+      "command-palette:コマンドパレットを開く": false
+    }
+  },
+  "active": "e40d36bd99027f2c",
+  "lastOpenFiles": [
+    "test.md",
+    "無題のファイル 1.canvas",
+    "無題のファイル.canvas",
+    "Welcome.md"
+  ]
+}

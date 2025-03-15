@@ -47,7 +47,7 @@
             "state": {
               "type": "canvas",
               "state": {
-                "file": "無題のファイル 1.canvas",
+                "file": "カレンダーライブラリ.canvas",
                 "viewState": {
                   "x": -8.5,
                   "y": -175,
@@ -55,11 +55,28 @@
                 }
               },
               "icon": "lucide-layout-dashboard",
-              "title": "無題のファイル 1"
+              "title": "カレンダーライブラリ"
+            }
+          },
+          {
+            "id": "e308209a78f7fbac",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "カレンダーライブラリ.canvas",
+                "viewState": {
+                  "x": -8.5,
+                  "y": -82,
+                  "zoom": 0
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "カレンダーライブラリ"
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 3
       }
     ],
     "direction": "vertical"
@@ -116,7 +133,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200,
+    "collapsed": true
   },
   "right": {
     "id": "3e0de9cda2cd3ee4",
@@ -206,11 +224,11 @@
       "command-palette:コマンドパレットを開く": false
     }
   },
-  "active": "e40d36bd99027f2c",
+  "active": "e308209a78f7fbac",
   "lastOpenFiles": [
     "test.md",
-    "無題のファイル 1.canvas",
-    "無題のファイル.canvas",
-    "Welcome.md"
+    "Welcome.md",
+    "カレンダーライブラリ.canvas",
+    "無題のファイル.canvas"
   ]
 }

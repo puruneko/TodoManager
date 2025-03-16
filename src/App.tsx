@@ -437,7 +437,7 @@ const DebugElem = ({ hier }: { hier: Hier[] }) => {
         )
     }
     return (
-        <div>
+        <div style={{ minHeight: "500px" }}>
             <h3>階層構造のパース</h3>
             {showHier(hier)}
         </div>

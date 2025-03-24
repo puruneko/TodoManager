@@ -9,59 +9,34 @@
 					"label": ""
 				},
 				{
-					"line": 441,
-					"column": 0,
-					"label": "nestedParse"
+					"line": 440,
+					"column": 40,
+					"label": ""
 				},
 				{
-					"line": 664,
+					"line": 1219,
 					"column": 22,
 					"label": ""
 				},
 				{
-					"line": 887,
-					"column": 44,
-					"label": ""
-				},
-				{
-					"line": 1382,
+					"line": 1403,
 					"column": 48,
 					"label": "list"
 				},
 				{
-					"line": 1824,
+					"line": 1442,
+					"column": 44,
+					"label": ""
+				},
+				{
+					"line": 2379,
 					"column": 20,
 					"label": "paragraph"
 				},
 				{
-					"line": 2063,
+					"line": 2618,
 					"column": 44,
 					"label": "em"
-				},
-				{
-					"line": 2199,
-					"column": 48,
-					"label": "text"
-				},
-				{
-					"line": 2254,
-					"column": 34,
-					"label": ""
-				},
-				{
-					"line": 2365,
-					"column": 32,
-					"label": ""
-				},
-				{
-					"line": 2586,
-					"column": 13,
-					"label": ""
-				},
-				{
-					"line": 2628,
-					"column": 31,
-					"label": ""
 				}
 			]
 		},

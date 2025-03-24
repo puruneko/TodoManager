@@ -448,10 +448,14 @@ var parserFor = function (
         state = state || latestState
         latestState = Object.assign({}, state)
         let cursorLocal = 0
+
+        /*[pos]
         const upperPosRangeOffset = upperCapture
             ? getPositionRangeOffset(upperCapture[0], source)
             : 0
         state.cursorGlobal = getShiftedGlobalCursor(state, upperPosRangeOffset)
+        */
+
         /*
         console.debug(
             `upperPosRangeOffset:${upperPosRangeOffset}
@@ -569,7 +573,7 @@ biteStringLength:${biteStringLength}`
                 )
                     */
                 callerState.nestLevel += 1
-                const calleeState = Object.assign({}, callerState)
+                const calleeState = structuredClone(callerState)
                 calleeState.parent = {
                     ruleType,
                 }
@@ -580,10 +584,14 @@ biteStringLength:${biteStringLength}`
             }
             //return [AST]
             const newState = structuredClone(state) //Object.assign({}, state)
+
+            /*[pos]
             newState.cursorGlobal = getShiftedGlobalCursor(
                 newState,
                 cursorLocal
             )
+            */
+
             /*
             console.debug(
                 `${" ".repeat(state.nestLevel * 2)}rule.parse(${ruleType})`
@@ -604,7 +612,11 @@ biteStringLength:${biteStringLength}`
             // even if there are several rules to parse them.
             parsedResultASTNodeArray.push(
                 toASTNodeFromParseRuleReslt(parsed, {
-                    posRange:
+                    posRange: [
+                        state.cursorGlobal,
+                        state.cursorGlobal + biteStringLength,
+                    ],
+                    /*
                         parsed.posRange &&
                         parsed.posRange[0] >= 0 &&
                         parsed.posRange[1] >= 0
@@ -614,6 +626,7 @@ biteStringLength:${biteStringLength}`
                                   cursorLocal,
                                   biteStringLength
                               ),
+                    */
                     key: parsed.key || state.parseNumber,
                 })
             )
@@ -627,6 +640,7 @@ biteStringLength:${biteStringLength}`
 
             state.prevCapture = capture
             source = source.substring(biteStringLength)
+            state.cursorGlobal += biteStringLength
             cursorLocal = getShiftedLocalCursor(cursorLocal, biteStringLength)
         }
         state.cursorGlobal = getShiftedGlobalCursor(state, cursorLocal)
@@ -993,7 +1007,8 @@ var LIST_R = new RegExp(
         ")(" +
         LIST_BULLETS +
         ") " +
-        "[\\s\\S]+?(?:\n{2,}(?! )" +
+        //"[\\s\\S]+?(?:\n{2,}(?! )" +
+        "([\\s\\S]+?)(?:\n{2,}(?! )" +
         "(?!\\1" +
         LIST_BULLETS +
         " )\\n*" +

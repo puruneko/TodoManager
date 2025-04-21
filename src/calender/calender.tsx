@@ -5,6 +5,7 @@ import React, { useState, useRef } from "react"
 
 // FullCalendarコンポーネント。
 import FullCalendar from "@fullcalendar/react"
+import type { EventContentArg } from "@fullcalendar/core"
 
 // FullCalendarで週表示を可能にするモジュール。
 import timeGridPlugin from "@fullcalendar/timegrid"
@@ -15,25 +16,28 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 // FullCalendarで日付や時間が選択できるようになるモジュール。
 import interactionPlugin from "@fullcalendar/interaction"
 
-type CEventType = {
+type CEventExtendedPropsType = {
+    description?: string
+}
+type CEventPropsType = {
     id: number
     title: string
     start: Date
     end: Date
-}
+} & CEventExtendedPropsType
 const SampleCalendar: React.FC = (props) => {
     //
     const refCalender = useRef<any>()
     //
-    const [events, setEvents] = useState<CEventType[]>([])
+    const [events, setEvents] = useState<CEventPropsType[]>([])
     const [eventId, setEventId] = useState(0)
-    const initialEvent: CEventType = {
+    const initialEvent: CEventPropsType = {
         id: -1,
         title: "",
         start: new Date(Date.now()),
         end: new Date(Date.now()),
     }
-    const [inputEvent, setInputEvent] = useState<CEventType>(initialEvent)
+    const [inputEvent, setInputEvent] = useState<CEventPropsType>(initialEvent)
     const [displayInput, setDisplayInput] = useState(false)
     //
     const handleClick = (info: any) => {
@@ -78,6 +82,7 @@ const SampleCalendar: React.FC = (props) => {
             let newInputEvent = {
                 ...inputEvent,
                 id: inputEvent.id === -1 ? eventId : inputEvent.id,
+                description: "DUMMY DESCRIPTION",
             }
             console.log(
                 "setEvents",
@@ -112,6 +117,28 @@ const SampleCalendar: React.FC = (props) => {
         setInputEvent(initialEvent)
         setDisplayInput(false)
     }
+    //
+    /**
+     * イベントの見た目の定義
+     * @param eventInfo
+     * @returns
+     */
+    const eventDisplayComponent = (eventInfo: EventContentArg) => {
+        //const eventProps = {
+        //    ...eventInfo.event,
+        //    ...eventInfo.event.extendedProps
+        // }
+        return (
+            <>
+                <i>{eventInfo.event.title}</i>
+                <p style={{ color: "red" }}>@@@@@@@@@@</p>
+                <i>{eventInfo.event.extendedProps.description}</i>
+                <p style={{ color: "red" }}>@@@@@@@@@@</p>
+                <b>{eventInfo.timeText}</b>
+            </>
+        )
+    }
+    //
     console.log("events", events)
     //
     //
@@ -187,6 +214,7 @@ const SampleCalendar: React.FC = (props) => {
                 }}
                 select={handleCalenderSelect}
                 eventClick={handleClick}
+                eventContent={eventDisplayComponent}
             />
         </div>
     )

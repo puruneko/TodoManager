@@ -1,7 +1,14 @@
 /**
  * 各種モジュールのインストール
  */
-import React, { useState, useRef } from "react"
+import React, {
+    useState,
+    useRef,
+    useMemo,
+    useCallback,
+    SetStateAction,
+    useReducer,
+} from "react"
 
 // FullCalendarコンポーネント。
 import FullCalendar from "@fullcalendar/react"
@@ -16,27 +23,57 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 // FullCalendarで日付や時間が選択できるようになるモジュール。
 import interactionPlugin from "@fullcalendar/interaction"
 
-type CEventExtendedPropsType = {
-    description?: string
+//
+import {
+    useEvents,
+    CEventPropsType,
+    initialEvent,
+    initialEvents,
+    CEventsPropsType,
+    eventsReducer,
+    useEventsFunction,
+} from "../sampleTasks"
+
+//DEBUG
+const isDebugPrint = true
+const __debugPrint__ = (...args: any) => {
+    if (isDebugPrint) {
+        console.debug(
+            ...args.map((x: any) => {
+                try {
+                    return structuredClone(x)
+                } catch (e) {
+                    return x
+                }
+            })
+        )
+    }
 }
-type CEventPropsType = {
-    id: number
-    title: string
-    start: Date
-    end: Date
-} & CEventExtendedPropsType
+//
+
 const SampleCalendar: React.FC = (props) => {
     //
     const refCalender = useRef<any>()
     //
-    const [events, setEvents] = useState<CEventPropsType[]>([])
-    const [eventId, setEventId] = useState(0)
-    const initialEvent: CEventPropsType = {
-        id: -1,
-        title: "",
-        start: new Date(Date.now()),
-        end: new Date(Date.now()),
-    }
+    /*
+    const eventsState = useEvents() //useState<CEventPropsType[]>([])
+    const events = useMemo(() => {
+        return eventsState[0] as CEventsPropsType
+    }, [eventsState])
+    const setEvents = useMemo(() => {
+        return eventsState[1] as (
+            value: SetStateAction<CEventsPropsType>
+        ) => ReturnType<(typeof eventsState)[1]>
+    }, [eventsState])
+    */
+    const [events, eventsDispatch] = useEvents()
+    const eventFunc = useEventsFunction(eventsDispatch)
+    /*
+    const setEvent = useCallback((event: CEventPropsType) => {
+        eventsDispatch({ type: "update", payload: { event } })
+    }, [])
+    */
+    const [eventId, setEventId] = useState(events.length + 1)
     const [inputEvent, setInputEvent] = useState<CEventPropsType>(initialEvent)
     const [displayInput, setDisplayInput] = useState(false)
     //
@@ -45,46 +82,62 @@ const SampleCalendar: React.FC = (props) => {
          * infoにはカレンダーに登録されたイベントが入ってくる。そのイベントのIDを元にmyEvents
          * に格納されたイベントを取り出してStateに保存する。
          */
-        const id = Number(info.event.id)
+        const id = String(info.event.id)
         //const event = refCalender.current.getApi().getElementById(id)
         const eventList = events.filter((e) => e.id === id)
-        console.log("handle click", events, eventList)
+        console.log("handle click", events, eventList, inputEvent)
         if (eventList.length === 1) {
             const event = eventList[0]
             const title = event.title
             const start = new Date(event.start)
             const end = new Date(event.end)
-            setInputEvent({
-                id,
-                title,
-                start,
-                end,
+            setInputEvent(() => {
+                return {
+                    ...Object.keys(event).reduce((dict, key) => {
+                        dict[key] = info.event[key]
+                        return dict
+                    }, {} as any),
+                    ...Object.keys(event).reduce((dict, key) => {
+                        dict[key] = info.event.extendedProps[key]
+                        return dict
+                    }, {} as any),
+                    id,
+                    title,
+                    start,
+                    end,
+                }
             })
             setDisplayInput(true)
         } else {
-            console.error("ERROR:", id, events)
+            __debugPrint__("ERROR:", id, events)
         }
     }
     const handleCalenderSelect = (selection: any) => {
-        console.log("select", events)
-        setInputEvent({
-            id: -1,
-            title: "",
-            start: selection.start,
-            end: selection.end,
+        __debugPrint__("select", events, selection)
+        setInputEvent(() => {
+            return Object.assign(
+                {
+                    id: String(eventId),
+                    title: "",
+                    start: selection.start,
+                    end: selection.end,
+                },
+                {}
+            )
         })
         setDisplayInput(true)
     }
     const onAddEvent = () => {
         //refCalender.current.getApi().addEvent(inputEvent)
-        console.log("onAddEvent", events)
+        __debugPrint__("onAddEvent", events)
+        /*
         setEvents((es) => {
             let newInputEvent = {
                 ...inputEvent,
                 id: inputEvent.id === -1 ? eventId : inputEvent.id,
                 description: "DUMMY DESCRIPTION",
             }
-            console.log(
+            __debugPrint__(
                 "setEvents",
                 es,
                 inputEvent,
@@ -96,17 +149,22 @@ const SampleCalendar: React.FC = (props) => {
                 newInputEvent,
             ]
         })
+            */
+        eventFunc.setEvent(inputEvent)
         setEventId((ei) => {
             return ei + 1
         })
-        setInputEvent(initialEvent)
+        setInputEvent(() => {
+            return { ...initialEvent }
+        })
         setDisplayInput(false)
     }
     const onDeleteEvent = () => {
         //refCalender.current.getApi().addEvent(inputEvent)
-        console.log("onDeleteEvent", events)
+        __debugPrint__("onDeleteEvent", events)
+        /*
         setEvents((es) => {
-            console.log(
+            __debugPrint__(
                 "onDeleteEvent setEvents",
                 es,
                 inputEvent,
@@ -114,6 +172,8 @@ const SampleCalendar: React.FC = (props) => {
             )
             return es.filter((x) => x.id !== inputEvent.id)
         })
+            */
+        eventFunc.deleteEvent(inputEvent.id)
         setInputEvent(initialEvent)
         setDisplayInput(false)
     }
@@ -123,7 +183,7 @@ const SampleCalendar: React.FC = (props) => {
      * @param eventInfo
      * @returns
      */
-    const eventDisplayComponent = (eventInfo: EventContentArg) => {
+    const EventDisplayComponent = (eventInfo: EventContentArg) => {
         //const eventProps = {
         //    ...eventInfo.event,
         //    ...eventInfo.event.extendedProps
@@ -135,11 +195,12 @@ const SampleCalendar: React.FC = (props) => {
                 <i>{eventInfo.event.extendedProps.description}</i>
                 <p style={{ color: "red" }}>@@@@@@@@@@</p>
                 <b>{eventInfo.timeText}</b>
+                <i>{eventInfo.event.extendedProps.tags}</i>
             </>
         )
     }
     //
-    console.log("events", events)
+    __debugPrint__("events", events, inputEvent)
     //
     //
     return (
@@ -150,40 +211,48 @@ const SampleCalendar: React.FC = (props) => {
                     position: "absolute",
                     top: 0,
                     left: 0,
-                    height: "200px",
-                    width: "200px",
+                    minHeight: "200px",
+                    minWidth: "200px",
                     zIndex: 2,
                     backgroundColor: "red",
+                    border: "1px solid black",
                 }}
             >
-                <form>
-                    <p>{inputEvent.id}</p>
-                    <input
-                        value={inputEvent.title}
-                        onChange={(e) => {
-                            setInputEvent({
-                                ...inputEvent,
-                                title: e.target.value,
-                            })
-                        }}
-                    />
-                    <p>{String(inputEvent.start)}</p>
-                    <p>{String(inputEvent.end)}</p>
-                    <input
-                        type="button"
-                        value="submit"
-                        onClick={() => {
-                            onAddEvent()
-                        }}
-                    />
-                    <input
-                        type="button"
-                        value="delete"
-                        onClick={() => {
-                            onDeleteEvent()
-                        }}
-                    />
-                </form>
+                <p>{inputEvent.id}</p>
+                <input
+                    value={inputEvent.title}
+                    onChange={(e) => {
+                        setInputEvent({
+                            ...inputEvent,
+                            title: e.target.value,
+                        })
+                    }}
+                />
+                <input
+                    value={inputEvent.tags?.join(",")}
+                    onChange={(e) => {
+                        setInputEvent({
+                            ...inputEvent,
+                            tags: e.target.value.split(","),
+                        })
+                    }}
+                />
+                <p>{String(inputEvent.start)}</p>
+                <p>{String(inputEvent.end)}</p>
+                <input
+                    type="button"
+                    value="submit"
+                    onClick={() => {
+                        onAddEvent()
+                    }}
+                />
+                <input
+                    type="button"
+                    value="delete"
+                    onClick={() => {
+                        onDeleteEvent()
+                    }}
+                />
             </div>
             <FullCalendar
                 ref={refCalender}
@@ -214,7 +283,7 @@ const SampleCalendar: React.FC = (props) => {
                 }}
                 select={handleCalenderSelect}
                 eventClick={handleClick}
-                eventContent={eventDisplayComponent}
+                eventContent={EventDisplayComponent}
             />
         </div>
     )

@@ -11,24 +11,6 @@ import React, {
     useReducer,
 } from "react"
 
-//DEBUG
-const isDebugPrint = true
-const __debugPrint__ = (...args: any) => {
-    if (isDebugPrint) {
-        console.debug(...args.map((x: any) => structuredClone(x)))
-    }
-}
-//
-const initText_sample = `
-# PJ1
-- [ ] task1 #TAGtask10 #TAGtask10_2
-- [ ] task2 #TAGtask20
-- [ ] task3 #TAGtask30
-- [ ] task4 #TAGtask40
-- [ ] task5 #TAGtask50
-
-`
-
 ////////////////////////////////
 import { unified } from "unified"
 import remarkParse from "remark-parse"
@@ -57,9 +39,15 @@ import {
 import { Element as HastElement } from "hast"
 import { State } from "mdast-util-to-hast"
 
-const input_list = initText_sample
 import { listItemHandler } from "./md2hHandlers"
-import { useEvents, useEventsFunction } from "../sampleTasks"
+import { useEvents, useEventsFunction } from "../store/eventsStore"
+import {
+    dateHashtagValue2dateRange,
+    mdpos2eventid,
+    useMdProps,
+    useMdPropsFunction,
+} from "../store/mdtextStore"
+import { __debugPrint__ } from "../debugtool/debugtool"
 
 ////////////////////////////////
 function isObject(target: unknown): target is { [key: string]: unknown } {
@@ -243,7 +231,7 @@ const getHashtag = (linetext: string) => {
 const removeHashtag = (linetext: string) => {
     return linetext.replace(regexpHashtag, "").trim()
 }
-const getTask = (tree) => {
+const getTasks = (tree) => {
     let tasks: any[] = []
     if (tree.children) {
         let listitems: MdastListItem[] = []
@@ -256,13 +244,35 @@ const getTask = (tree) => {
                             .children[0] as MdastParagraph
                         const textItem = paragraphItem.children[0] as MdastText
                         const linetext = textItem.value
+                        const pos = listitem.position
+                        const hashtags = getHashtag(linetext)
+                        const dateHashtags = hashtags
+                            .filter((h) =>
+                                h.replace("#", "").startsWith("scheduled")
+                            )
+                            .map((h) => {
+                                return dateHashtagValue2dateRange(h)
+                            }) //[NOTE]scheduledタグは１つしか付けられない想定の実装
                         __debugPrint__(textItem)
-                        tasks.push({
-                            title: removeHashtag(linetext),
-                            position: listitem.position,
-                            checked: listitem.checked,
-                            tags: getHashtag(linetext),
-                        })
+                        if (pos) {
+                            tasks.push({
+                                id: mdpos2eventid(pos),
+                                title: removeHashtag(linetext),
+                                position: pos,
+                                checked: listitem.checked,
+                                tags: hashtags,
+                                start:
+                                    dateHashtags.length != 0
+                                        ? dateHashtags[0].start
+                                        : undefined,
+                                end:
+                                    dateHashtags.length != 0
+                                        ? dateHashtags[0].end
+                                        : undefined,
+                            })
+                        } else {
+                            throw Error(`pos is undefined(${linetext})`)
+                        }
                     }
                     /*
                     if (listitem.children.some((c) => c.type == "list")) {
@@ -273,7 +283,7 @@ const getTask = (tree) => {
                         */
                 }
             }
-            getTask(treeChild).forEach((task) => {
+            getTasks(treeChild).forEach((task) => {
                 tasks.push(task)
             })
         }
@@ -284,17 +294,22 @@ const getTask = (tree) => {
 ////////////////////////////////
 function SampleTexteditor() {
     //
-    const [events, eventsDispatch] = useEvents()
-    const eventFunc = useEventsFunction(eventsDispatch)
+    const [mdProps, mdPropsDispatch] = useMdProps()
+    const mdPropsFunc = useMdPropsFunction(mdPropsDispatch)
     //
-    const [input, setInput] = useState(input_list)
-    const [content, setContent] = useState("")
+    const [events, eventsDispatch] = useEvents()
+    const eventsFunc = useEventsFunction(eventsDispatch)
+    //
+    const [previewComponent, setPreviewComponent] = useState("")
     const [mdast, setMdast] = useState("")
 
     ////////////////////////////////
     const processorRef = useRef<any>(null)
+    //
+    // component did mount
+    //
     useEffect(() => {
-        console.log("process")
+        __debugPrint__("process")
         processorRef.current = unified()
             .use(remarkParse, { fragment: true }) //parser(text->mdast)
             .use(remarkGfm)
@@ -311,46 +326,63 @@ function SampleTexteditor() {
             }) //compiler(hast->react)
         //
     }, [])
+    //
+    // mdtext changed
+    //
+    const handleMdtextChanged = async (mdtext) => {
+        __debugPrint__("handleMdtextChanged")
+        const processor = processorRef.current
+        if (processor) {
+            const parsed = processor.parse(mdtext)
+            const transformed = processor.runSync(parsed)
+            const contents = await processor.process(mdtext)
+            console.log("parsed", {
+                parsed,
+                transformed,
+                contents,
+            })
+            setPreviewComponent(contents.result)
+            setMdast(JSON.stringify(parsed, null, 2))
+            //
+            // generate tasks
+            //
+            const newTasks = getTasks(parsed)
+            eventsFunc.set(newTasks)
+            __debugPrint__("getTask", newTasks)
+        }
+    }
     useEffect(() => {
         ;(async () => {
-            console.log("process")
-            const processor = processorRef.current
-            if (processor) {
-                const parsed = processor.parse(input)
-                const transformed = processor.runSync(parsed)
-                const contents = await processor.process(input)
-                console.log({
-                    parsed,
-                    transformed,
-                    contents,
-                })
-                setContent(contents.result)
-                setMdast(JSON.stringify(parsed, null, 2))
-                //
-                console.log("getTask", getTask(parsed))
-            }
+            await handleMdtextChanged(mdProps.mdtext)
         })()
-    }, [input])
+    }, [mdProps])
+    //
+    // editor changed
+    //
+    const handleTextareaChanged = (e) => {
+        __debugPrint__("handleTextareaChanged")
+        const mdtext = e.target.value
+        mdPropsFunc.setText(mdtext)
+    }
     ////////////////////////////////
     return (
         <>
             <h1>TEXTEDITOR</h1>
             <textarea
-                value={input}
-                onChange={(e) => {
-                    setInput(e.target.value)
-                }}
+                value={mdProps.mdtext}
+                onChange={handleTextareaChanged}
                 style={{
                     minWidth: "100%",
                     minHeight: "20em",
                     //@ts-ignore(experimental prop)
-                    "field-sizing": "content",
+                    fieldSizing: "content",
                 }}
             />
             <br />
             <pre style={{ display: "none" }}>{mdast}</pre>
             {/*<div dangerouslySetInnerHTML={{ __html: content }}></div>*/}
-            {content}
+            <hr />
+            {previewComponent}
         </>
     )
 }

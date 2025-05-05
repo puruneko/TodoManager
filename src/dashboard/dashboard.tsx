@@ -32,23 +32,13 @@ import {
     initialEvents,
     CEventsPropsType,
     eventsReducer,
-} from "../sampleTasks"
-
-//DEBUG
-const isDebugPrint = true
-const __debugPrint__ = (...args: any) => {
-    if (isDebugPrint) {
-        console.debug(...args.map((x: any) => structuredClone(x)))
-    }
-}
-//
+    useEventsValue,
+} from "../store/eventsStore"
+import { __debugPrint__ } from "../debugtool/debugtool"
 
 const SampleDashboard: React.FC = (props) => {
     //
-    const [events, eventsDispatch] = useEvents()
-    const setEvent = useCallback((event: CEventPropsType) => {
-        eventsDispatch({ type: "update", payload: { event } })
-    }, [])
+    const events = useEventsValue()
     const [filteredEvents, setFilteredEvents] = useState<{
         [tag: string]: CEventsPropsType
     }>({})
@@ -72,10 +62,10 @@ const SampleDashboard: React.FC = (props) => {
                 const name = fe[0]
                 const es = fe[1]
                 return (
-                    <div>
+                    <div key={name}>
                         <h2>tagname:{name}</h2>
                         {es.map((e) => {
-                            return <p>{e.title}</p>
+                            return <p key={e.title}>{e.title}</p>
                         })}
                     </div>
                 )

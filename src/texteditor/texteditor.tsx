@@ -40,10 +40,10 @@ import { Element as HastElement } from "hast"
 import { State } from "mdast-util-to-hast"
 
 import { listItemHandler } from "./md2hHandlers"
-import { useEvents, useEventsFunction } from "../store/eventsStore"
+import { useCEvents, useCEventsFunction } from "../store/cEventsStore"
 import {
     dateHashtagValue2dateRange,
-    mdpos2eventid,
+    mdpos2cEventid,
     useMdProps,
     useMdPropsFunction,
 } from "../store/mdtextStore"
@@ -256,7 +256,7 @@ const getTasks = (tree) => {
                         __debugPrint__(textItem)
                         if (pos) {
                             tasks.push({
-                                id: mdpos2eventid(pos),
+                                id: mdpos2cEventid(pos),
                                 title: removeHashtag(linetext),
                                 position: pos,
                                 checked: listitem.checked,
@@ -269,6 +269,7 @@ const getTasks = (tree) => {
                                     dateHashtags.length != 0
                                         ? dateHashtags[0].end
                                         : undefined,
+                                description: "dummy text.".repeat(10),
                             })
                         } else {
                             throw Error(`pos is undefined(${linetext})`)
@@ -297,8 +298,8 @@ function SampleTexteditor() {
     const [mdProps, mdPropsDispatch] = useMdProps()
     const mdPropsFunc = useMdPropsFunction(mdPropsDispatch)
     //
-    const [events, eventsDispatch] = useEvents()
-    const eventsFunc = useEventsFunction(eventsDispatch)
+    const [cEvents, cEventsDispatch] = useCEvents()
+    const cEventsFunc = useCEventsFunction(cEventsDispatch)
     //
     const [previewComponent, setPreviewComponent] = useState("")
     const [mdast, setMdast] = useState("")
@@ -347,7 +348,7 @@ function SampleTexteditor() {
             // generate tasks
             //
             const newTasks = getTasks(parsed)
-            eventsFunc.set(newTasks)
+            cEventsFunc.set(newTasks)
             __debugPrint__("getTask", newTasks)
         }
     }

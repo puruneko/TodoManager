@@ -24,20 +24,26 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
 
 //
+import "./calendar.css"
 import {
-    useEvents,
+    useCEvents,
     CEventPropsType,
-    initialEvent,
-    initialEvents,
+    initialCEvent,
+    initialCEvents,
     CEventsPropsType,
-    eventsReducer,
-    useEventsFunction,
-    useEventsValue,
-} from "../store/eventsStore"
-import { useMdProps, useMdPropsFunction } from "../store/mdtextStore"
+    cEventsReducer,
+    useCEventsFunction,
+    useCEventsValue,
+} from "../store/cEventsStore"
+import {
+    dateProps2stringType,
+    getDateProps,
+    useMdProps,
+    useMdPropsFunction,
+} from "../store/mdtextStore"
 import { __debugPrint__ } from "../debugtool/debugtool"
 
-const eventInfoFirstProps = [
+const cEventInfoFirstProps = [
     "source",
     "start",
     "end",
@@ -59,19 +65,19 @@ const eventInfoFirstProps = [
     "classNames",
     "extendedProps",
 ]
-const getEventInfoProps = (eventInfoObj: any, propname: string) => {
-    if (eventInfoFirstProps.includes(propname)) {
-        return eventInfoObj[propname]
+const getCEventInfoProps = (cEventInfoObj: any, propname: string) => {
+    if (cEventInfoFirstProps.includes(propname)) {
+        return cEventInfoObj[propname]
     }
-    return eventInfoObj.extendedProps[propname]
+    return cEventInfoObj.extendedProps[propname]
 }
-const getEventById = (events: CEventsPropsType, id: string) => {
-    let event: CEventPropsType | undefined = undefined
-    const _event = events.filter((e) => e.id === id)
-    if (_event.length === 1) {
-        event = _event[0]
+const getCEventById = (cEvents: CEventsPropsType, id: string) => {
+    let cEvent: CEventPropsType | undefined = undefined
+    const _cEvent = cEvents.filter((e) => e.id === id)
+    if (_cEvent.length === 1) {
+        cEvent = _cEvent[0]
     }
-    return event
+    return cEvent
 }
 
 const SampleCalendar: React.FC = (props) => {
@@ -81,21 +87,22 @@ const SampleCalendar: React.FC = (props) => {
     const [mdProps, mdPropsDispatch] = useMdProps()
     const mdPropsFunc = useMdPropsFunction(mdPropsDispatch)
     //
-    const events = useEventsValue()
-    const [inputEvent, setInputEvent] = useState<CEventPropsType>(initialEvent)
+    const cEvents = useCEventsValue()
+    const [inputCEvent, setInputCEvent] =
+        useState<CEventPropsType>(initialCEvent)
     const [displayInput, setDisplayInput] = useState(false)
     //
     const handleClick = (id: string) => {
-        //const event = refCalender.current.getApi().getElementById(id)
-        const event = getEventById(events, id)
-        __debugPrint__("handle click", id, events, event, inputEvent)
-        if (event) {
-            const title = event.title
-            const start = new Date(event.start)
-            const end = new Date(event.end)
-            setInputEvent(() => {
+        //const cEvent = refCalender.current.getApi().getElementById(id)
+        const cEvent = getCEventById(cEvents, id)
+        __debugPrint__("handle click", id, cEvents, cEvent, inputCEvent)
+        if (cEvent) {
+            const title = cEvent.title
+            const start = new Date(cEvent.start)
+            const end = new Date(cEvent.end)
+            setInputCEvent(() => {
                 return {
-                    ...event,
+                    ...cEvent,
                     id,
                     title,
                     start,
@@ -104,12 +111,12 @@ const SampleCalendar: React.FC = (props) => {
             })
             setDisplayInput(true)
         } else {
-            __debugPrint__("ERROR:", id, events)
+            __debugPrint__("ERROR:", id, cEvents)
         }
     }
     const handleCalenderSelect = (selection: any) => {
-        __debugPrint__("select", events, selection)
-        setInputEvent(() => {
+        __debugPrint__("select", cEvents, selection)
+        setInputCEvent(() => {
             return Object.assign(
                 {
                     id: "",
@@ -122,117 +129,153 @@ const SampleCalendar: React.FC = (props) => {
         })
         setDisplayInput(true)
     }
-    const onSubmitEvent = () => {
-        //refCalender.current.getApi().addEvent(inputEvent)
-        __debugPrint__("onSubmitEvent", events)
+    const onSubmitCEvent = () => {
+        //refCalender.current.getApi().addCEvent(inputCEvent)
+        __debugPrint__("onSubmitCEvent", cEvents)
         //
-        mdPropsFunc.updateTasks([inputEvent])
+        mdPropsFunc.updateTasks([inputCEvent])
         //
-        setInputEvent(() => {
-            return { ...initialEvent }
+        setInputCEvent(() => {
+            return { ...initialCEvent }
         })
         setDisplayInput(false)
     }
-    const onDeleteEvent = () => {
-        //refCalender.current.getApi().addEvent(inputEvent)
-        __debugPrint__("onDeleteEvent", events)
+    const onDeleteCEvent = () => {
+        //refCalender.current.getApi().addCEvent(inputCEvent)
+        __debugPrint__("onDeleteCEvent", cEvents)
         /*
-        setEvents((es) => {
+        setCEvents((es) => {
             __debugPrint__(
-                "onDeleteEvent setEvents",
+                "onDeleteCEvent setCEvents",
                 es,
-                inputEvent,
-                es.filter((x) => x.id !== inputEvent.id)
+                inputCEvent,
+                es.filter((x) => x.id !== inputCEvent.id)
             )
-            return es.filter((x) => x.id !== inputEvent.id)
+            return es.filter((x) => x.id !== inputCEvent.id)
         })
             */
-        mdPropsFunc.removeTasks([inputEvent.id])
-        setInputEvent(initialEvent)
+        mdPropsFunc.removeTasks([inputCEvent.id])
+        setInputCEvent(initialCEvent)
         setDisplayInput(false)
     }
     //
     /**
      * イベントの見た目の定義
-     * @param eventInfo
+     * @param cEventInfo
      * @returns
      */
-    const EventDisplayComponent = (eventInfo: EventContentArg) => {
-        //const eventProps = {
-        //    ...eventInfo.event,
-        //    ...eventInfo.event.extendedProps
-        // }
-        __debugPrint__(
-            eventInfo,
-            eventInfo.event,
-            eventInfo.event.extendedProps,
-            { ...eventInfo.event, ...eventInfo.event.extendedProps },
-            getEventInfoProps(eventInfo.event, "title"),
-            getEventInfoProps(eventInfo.event, "tags")
-        )
+    const CEventDisplayComponent = (fcEventInfo: EventContentArg) => {
         //
-        const id = getEventInfoProps(eventInfo.event, "id")
+        const fcEvent = fcEventInfo.event
+        //
+        const id = getCEventInfoProps(fcEvent, "id")
+        //
+        const handleCEventAreaClicked = (id) => {
+            console.log(getCEventById(cEvents, id))
+        }
         const handleCheckboxClicked = (e) => {
-            const event = getEventById(events, id)
-            if (event) {
-                event.checked =
-                    event.checked !== undefined ? !event.checked : true
-                mdPropsFunc.updateTasks([event])
+            const cEvent = getCEventById(cEvents, id)
+            if (cEvent) {
+                cEvent.checked =
+                    cEvent.checked !== undefined ? !cEvent.checked : true
+                mdPropsFunc.updateTasks([cEvent])
             }
             e.stopPropagation()
         }
         //
+        const d = {
+            start: dateProps2stringType(
+                getDateProps(
+                    getCEventInfoProps(fcEventInfo.event, "start"),
+                    String
+                )
+            ),
+            end: dateProps2stringType(
+                getDateProps(
+                    getCEventInfoProps(fcEventInfo.event, "end"),
+                    String
+                )
+            ),
+        }
+        const timeText = `${d.start.hour}:${d.start.minute} - ${d.end.hour}:${d.end.minute}`
+        //
         return (
             <div
-                style={{
-                    maxWidth: "100%",
-                    wordWrap: "break-word",
-                }}
+                key={id}
+                className="calender-cEventcard"
                 onClick={() => {
-                    handleClick(id)
+                    handleCEventAreaClicked(id)
+                    //handleClick(id)
                 }}
             >
+                <div className="calender-cEventcard-header">
+                    <div style={{ flexGrow: 1 }}>PJ Name</div>
+                    <div>{timeText}</div>
+                </div>
+                <div
+                    className="calender-cEventcard-title"
+                    style={{ display: "inline-flex", flexDirection: "row" }}
+                >
+                    <input
+                        type="checkbox"
+                        checked={getCEventInfoProps(fcEvent, "checked")}
+                        onClick={handleCheckboxClicked}
+                    />
+                    <p>{fcEvent.title}</p>
+                </div>
+                <div className="calender-cEventcard-tags">
+                    <p className="p-text-ellipsis">
+                        {getCEventInfoProps(fcEvent, "tags").join(",")}
+                    </p>
+                </div>
+                <div className="calender-cEventcard-description">
+                    <p className="p-text-ellipsis">
+                        [desc]{getCEventInfoProps(fcEvent, "description")}
+                    </p>
+                </div>
+                {/*
                 <table style={{ color: "red", wordWrap: "break-word" }}>
                     <tr>
                         <td>
                             <input
                                 type="checkbox"
-                                checked={getEventInfoProps(
-                                    eventInfo.event,
+                                checked={getCEventInfoProps(
+                                    cEventInfo.cEvent,
                                     "checked"
                                 )}
                                 onClick={handleCheckboxClicked}
                             />
-                            {eventInfo.event.title}
+                            {cEventInfo.cEvent.title}
                         </td>
                     </tr>
                     <tr>
                         <td>
-                            [desc]{eventInfo.event.extendedProps.description}
+                            [desc]{cEventInfo.cEvent.extendedProps.description}
                         </td>
                     </tr>
                     <tr>
-                        <td>[timeText]{eventInfo.timeText}</td>
+                        <td>[timeText]{cEventInfo.timeText}</td>
                     </tr>
                     <tr>
                         <td>
-                            [tags]{eventInfo.event.extendedProps.tags.join(",")}
+                            [tags]{cEventInfo.cEvent.extendedProps.tags.join(",")}
                         </td>
                     </tr>
                     <tr>
                         <td>
                             [checked]
                             {String(
-                                getEventInfoProps(eventInfo.event, "checked")
+                                getCEventInfoProps(cEventInfo.cEvent, "checked")
                             )}
                         </td>
                     </tr>
                 </table>
+                */}
             </div>
         )
     }
     //
-    __debugPrint__("events in calendar", events, inputEvent)
+    __debugPrint__("cEvents in calendar", cEvents, inputCEvent)
     //
     //
     return (
@@ -250,39 +293,39 @@ const SampleCalendar: React.FC = (props) => {
                     border: "1px solid black",
                 }}
             >
-                <p>{inputEvent.id}</p>
+                <p>{inputCEvent.id}</p>
                 <input
-                    value={inputEvent.title}
+                    value={inputCEvent.title}
                     onChange={(e) => {
-                        setInputEvent({
-                            ...inputEvent,
+                        setInputCEvent({
+                            ...inputCEvent,
                             title: e.target.value,
                         })
                     }}
                 />
                 <input
-                    value={inputEvent.tags?.join(",")}
+                    value={inputCEvent.tags?.join(",")}
                     onChange={(e) => {
-                        setInputEvent({
-                            ...inputEvent,
+                        setInputCEvent({
+                            ...inputCEvent,
                             tags: e.target.value.split(","),
                         })
                     }}
                 />
-                <p>{String(inputEvent.start)}</p>
-                <p>{String(inputEvent.end)}</p>
+                <p>{String(inputCEvent.start)}</p>
+                <p>{String(inputCEvent.end)}</p>
                 <input
                     type="button"
                     value="submit"
                     onClick={() => {
-                        onSubmitEvent()
+                        onSubmitCEvent()
                     }}
                 />
                 <input
                     type="button"
                     value="delete"
                     onClick={() => {
-                        onDeleteEvent()
+                        onDeleteCEvent()
                     }}
                 />
                 <input
@@ -296,7 +339,7 @@ const SampleCalendar: React.FC = (props) => {
             <FullCalendar
                 ref={refCalender}
                 //@ts-ignore
-                events={events}
+                events={cEvents}
                 locale="ja" // ロケール設定。
                 plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]} // 週表示、月表示、日付等のクリックを可能にするプラグインを設定。
                 initialView="timeGridWeek" // カレンダーの初期表示設定。この場合、週表示。
@@ -321,8 +364,8 @@ const SampleCalendar: React.FC = (props) => {
                     end: "dayGridMonth,timeGridWeek",
                 }}
                 select={handleCalenderSelect}
-                //eventClick={handleClick}
-                eventContent={EventDisplayComponent}
+                //cEventClick={handleClick}
+                eventContent={CEventDisplayComponent}
             />
         </div>
     )

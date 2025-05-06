@@ -26,20 +26,20 @@ import interactionPlugin from "@fullcalendar/interaction"
 
 //
 import {
-    useEvents,
+    useCEvents,
     CEventPropsType,
-    initialEvent,
-    initialEvents,
+    initialCEvent,
+    initialCEvents,
     CEventsPropsType,
-    eventsReducer,
-    useEventsValue,
-} from "../store/eventsStore"
+    cEventsReducer,
+    useCEventsValue,
+} from "../store/cEventsStore"
 import { __debugPrint__ } from "../debugtool/debugtool"
 
 const SampleDashboard: React.FC = (props) => {
     //
-    const events = useEventsValue()
-    const [filteredEvents, setFilteredEvents] = useState<{
+    const cEvents = useCEventsValue()
+    const [filteredCEvents, setFilteredCEvents] = useState<{
         [tag: string]: CEventsPropsType
     }>({})
     const targetTags = ["TAGtask1", "TAGtask2"]
@@ -47,18 +47,18 @@ const SampleDashboard: React.FC = (props) => {
     useEffect(() => {
         let fe: { [tag: string]: CEventsPropsType } = {}
         for (let targetTag of targetTags) {
-            fe[targetTag] = events.filter((e) => e.tags?.includes(targetTag))
-            __debugPrint__(events)
+            fe[targetTag] = cEvents.filter((e) => e.tags?.includes(targetTag))
+            __debugPrint__(cEvents)
         }
-        setFilteredEvents(fe)
-    }, [events])
+        setFilteredCEvents(fe)
+    }, [cEvents])
     //
     //
     //
     return (
         <div>
             <h1>DASHBOARD</h1>
-            {Object.entries(filteredEvents).map((fe) => {
+            {Object.entries(filteredCEvents).map((fe) => {
                 const name = fe[0]
                 const es = fe[1]
                 return (

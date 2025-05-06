@@ -5,13 +5,13 @@ import "./index.css"
 import Calender from "./calendar/calendar"
 import Dashboard from "./dashboard/dashboard"
 import Texteditor from "./texteditor/texteditor"
-import { UseEventsProviderComponent } from "./store/eventsStore"
+import { UseCEventsProviderComponent } from "./store/cEventsStore"
 import { UseMdPropsProviderComponent } from "./store/mdtextStore"
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <UseMdPropsProviderComponent>
-            <UseEventsProviderComponent>
+            <UseCEventsProviderComponent>
                 <div style={{ display: "flex", flexDirection: "column" }}>
                     {/*
             <div>
@@ -47,7 +47,7 @@ createRoot(document.getElementById("root")!).render(
                         </div>
                     </div>
                 </div>
-            </UseEventsProviderComponent>
+            </UseCEventsProviderComponent>
         </UseMdPropsProviderComponent>
     </StrictMode>
 )

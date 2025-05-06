@@ -10,7 +10,7 @@ import {
     useRef,
     useState,
 } from "react"
-import { CEventsPropsType } from "./eventsStore"
+import { CEventsPropsType } from "./cEventsStore"
 import { Position } from "unist"
 import { __debugPrint__ } from "../debugtool/debugtool"
 import { dictMap } from "../utils/iterable"
@@ -73,14 +73,14 @@ type MdPropsActionType =
           payload: {}
       }
 
-export const mdpos2eventid = (mdpos: Position): string => {
+export const mdpos2cEventid = (mdpos: Position): string => {
     return `${mdpos.start.line}-${mdpos.start.column}-${mdpos.start.offset},${mdpos.end.line}-${mdpos.end.column}-${mdpos.end.offset}`
 }
-export const eventid2mdpos = (eventid: string): Position => {
+export const cEventid2mdpos = (cEventid: string): Position => {
     const regexpMdposStr = new RegExp(
         "(\\d+)-(\\d+)-(\\d+),(\\d+)-(\\d+)-(\\d+)"
     )
-    const m = eventid.match(regexpMdposStr)
+    const m = cEventid.match(regexpMdposStr)
     let res = {
         start: {
             line: -1,
@@ -109,7 +109,7 @@ export const eventid2mdpos = (eventid: string): Position => {
     }
     return res
 }
-const getDateProps = (d: Date, typeFunc: any = Number) => {
+export const getDateProps = (d: Date, typeFunc: any = Number) => {
     return {
         year: typeFunc(d.getFullYear()),
         month: typeFunc(d.getMonth() + 1),
@@ -119,18 +119,20 @@ const getDateProps = (d: Date, typeFunc: any = Number) => {
         second: typeFunc(d.getSeconds()),
     }
 }
+export const dateProps2stringType = (dateProps: any) => {
+    return {
+        year: String(dateProps.year).padStart(4, "0"),
+        month: String(dateProps.month).padStart(2, "0"),
+        day: String(dateProps.day).padStart(2, "0"),
+        hour: String(dateProps.hour).padStart(2, "0"),
+        minute: String(dateProps.minute).padStart(2, "0"),
+        second: String(dateProps.second).padStart(2, "0"),
+    }
+}
 export const dateProps2dateString = (dateProps: any) => {
-    const d = dictMap(dateProps, (_, value) => {
-        return String(value)
-    })
+    const d = dateProps2stringType(dateProps)
     __debugPrint__("dateProps2dateString", d)
-    return `${d.year.padStart(4, "0")}-${d.month.padStart(
-        2,
-        "0"
-    )}-${d.day.padStart(2, "0")}T${d.hour.padStart(2, "0")}:${d.minute.padStart(
-        2,
-        "0"
-    )}`
+    return `${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
 }
 const regstrDateHashtag = new RegExp(
     "[~]?(\\d{4}-\\d{1,2}-\\d{1,2})(T(\\d{1,2}(:\\d{1,2}(:\\d{1,2})?)?))?",
@@ -282,7 +284,7 @@ export const mdPropsReducer = (
                     }
                     //既存タスクの更新
                     else {
-                        const position = eventid2mdpos(task.id)
+                        const position = cEventid2mdpos(task.id)
                         const newLineText = `- [${task.checked ? "x" : " "}] ${
                             task.title
                         } ${tagsStr}`
@@ -307,7 +309,7 @@ export const mdPropsReducer = (
             })()
         case "removeTasks":
             let positions: Position[] = action.payload.ids.map((id) => {
-                return eventid2mdpos(id)
+                return cEventid2mdpos(id)
             })
             let newMdtext = state.mdtext
             for (let pos of positions) {
@@ -376,33 +378,33 @@ export const useMdPropsFunction = (dispatch: Dispatch<MdPropsActionType>) => {
 }
 
 /**
- * eventsの本体
+ * cEventsの本体
  */
 const MdPropsContext = createContext<MdPropsType>(initialMdProps)
 
 /**
- * eventsにアクセスするためのHook
+ * cEventsにアクセスするためのHook
  * @returns
  */
 const useMdPropsContext = () => useContext(MdPropsContext)
 
 /**
- * eventsのdispatchの本体
+ * cEventsのdispatchの本体
  */
 const MdPropsDispatchContext = createContext<Dispatch<MdPropsActionType>>(
     () => undefined
 )
 
 /**
- * eventsDispatchにアクセスするためのHook
+ * cEventsDispatchにアクセスするためのHook
  * @returns
  */
 const useMdPropsDispatch = () => useContext(MdPropsDispatchContext)
 
 /**
- * eventsをコンポーネント内で利用するためのHook
+ * cEventsをコンポーネント内で利用するためのHook
  * @example
- *     const [events, eventsDispatch] = useEvents()
+ *     const [cEvents, cEventsDispatch] = useCEvents()
  *
  * @returns
  */
@@ -413,11 +415,11 @@ export const useMdProps = (): [MdPropsType, Dispatch<MdPropsActionType>] => {
 }
 
 /**
- * eventsにアクセスできるコンポーネントを制御するためのProvider
+ * cEventsにアクセスできるコンポーネントを制御するためのProvider
  * @example
- *     <UseEventsProviderComponent>
+ *     <UseCEventsProviderComponent>
  *         <App />
- *     </UseEventsProviderComponent>
+ *     </UseCEventsProviderComponent>
  * @param param0
  * @returns
  * @description ここでcontextとreducerが扱うstore/dispacherを紐づける（value=の部分）

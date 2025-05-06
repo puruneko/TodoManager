@@ -23,17 +23,17 @@ export type CEventPropsType = {
 }
 export type CEventsPropsType = NonNullable<Array<CEventPropsType>>
 
-type EventsActionType =
+type CEventsActionType =
     | {
           type: "set"
           payload: {
-              events: CEventsPropsType
+              cEvents: CEventsPropsType
           }
       }
     | {
           type: "update"
           payload: {
-              events: CEventsPropsType
+              cEvents: CEventsPropsType
           }
       }
     | {
@@ -43,30 +43,30 @@ type EventsActionType =
           }
       }
 
-export const eventsReducer = (
+export const cEventsReducer = (
     state: CEventsPropsType,
-    action: EventsActionType
+    action: CEventsActionType
 ): CEventsPropsType => {
     switch (action.type) {
         case "set":
-            return structuredClone(action.payload.events)
+            return structuredClone(action.payload.cEvents)
         case "update":
-            const updatingIds = action.payload.events.map((e) => e.id)
+            const updatingIds = action.payload.cEvents.map((e) => e.id)
             return [
                 ...state.filter((x) => !updatingIds.includes(x.id)),
-                ...action.payload.events,
+                ...action.payload.cEvents,
             ]
         case "remove":
             return state.filter((x) => !action.payload.ids.includes(x.id))
     }
 }
 
-export const useEventsFunction = (dispatch: Dispatch<EventsActionType>) => {
-    const set = useCallback((events: CEventsPropsType) => {
-        dispatch({ type: "set", payload: { events } })
+export const useCEventsFunction = (dispatch: Dispatch<CEventsActionType>) => {
+    const set = useCallback((cEvents: CEventsPropsType) => {
+        dispatch({ type: "set", payload: { cEvents } })
     }, [])
-    const update = useCallback((events: CEventsPropsType) => {
-        dispatch({ type: "update", payload: { events } })
+    const update = useCallback((cEvents: CEventsPropsType) => {
+        dispatch({ type: "update", payload: { cEvents } })
     }, [])
     const remove = useCallback((ids: string[]) => {
         dispatch({ type: "remove", payload: { ids } })
@@ -75,88 +75,91 @@ export const useEventsFunction = (dispatch: Dispatch<EventsActionType>) => {
 }
 
 /**
- * eventsの本体
+ * cEventsの本体
  */
-const EventsContext = createContext<CEventsPropsType>([])
+const CEventsContext = createContext<CEventsPropsType>([])
 
 /**
- * eventsにアクセスするためのHook
+ * cEventsにアクセスするためのHook
  * @returns
  */
-const useEventsContext = () => useContext(EventsContext)
+const useCEventsContext = () => useContext(CEventsContext)
 
 /**
- * eventsのdispatchの本体
+ * cEventsのdispatchの本体
  */
-const eventsDispatchContext = createContext<Dispatch<EventsActionType>>(
+const cEventsDispatchContext = createContext<Dispatch<CEventsActionType>>(
     () => undefined
 )
 
 /**
- * eventsDispatchにアクセスするためのHook
+ * cEventsDispatchにアクセスするためのHook
  * @returns
  */
-const useEventsDispatch = () => useContext(eventsDispatchContext)
+const useCEventsDispatch = () => useContext(cEventsDispatchContext)
 
 /**
- * eventsをコンポーネント内で利用するためのHook
+ * cEventsをコンポーネント内で利用するためのHook
  * @example
- *     const [events, eventsDispatch] = useEvents()
+ *     const [cEvents, cEventsDispatch] = useCEvents()
  *
  * @returns
  */
-export const useEvents = (): [CEventsPropsType, Dispatch<EventsActionType>] => {
-    const events = useEventsContext()
-    const dispatch = useEventsDispatch()
-    return [events, dispatch]
+export const useCEvents = (): [
+    CEventsPropsType,
+    Dispatch<CEventsActionType>
+] => {
+    const cEvents = useCEventsContext()
+    const dispatch = useCEventsDispatch()
+    return [cEvents, dispatch]
 }
 
 /**
- * eventsの値のみをコンポーネント内で利用するためのHook
+ * cEventsの値のみをコンポーネント内で利用するためのHook
  * @example
- *     const events = useEventsValue()
+ *     const cEvents = useCEventsValue()
  *
  * @returns
  */
-export const useEventsValue = (): CEventsPropsType => {
-    const events = useEventsContext()
-    return events
+export const useCEventsValue = (): CEventsPropsType => {
+    const cEvents = useCEventsContext()
+    return cEvents
 }
 
 /**
- * eventsにアクセスできるコンポーネントを制御するためのProvider
+ * cEventsにアクセスできるコンポーネントを制御するためのProvider
  * @example
- *     <UseEventsProviderComponent>
+ *     <UseCEventsProviderComponent>
  *         <App />
- *     </UseEventsProviderComponent>
+ *     </UseCEventsProviderComponent>
  * @param param0
  * @returns
  * @description ここでcontextとreducerが扱うstore/dispacherを紐づける（value=の部分）
  */
-export const UseEventsProviderComponent: React.FC<any> = ({ children }) => {
-    const [eventsStoreGlobal, eventsStoreGlobalDispatch] = useReducer(
-        eventsReducer,
-        initialEvents
+export const UseCEventsProviderComponent: React.FC<any> = ({ children }) => {
+    const [cEventsStoreGlobal, cEventsStoreGlobalDispatch] = useReducer(
+        cEventsReducer,
+        initialCEvents
     )
     return (
-        <EventsContext.Provider value={eventsStoreGlobal}>
-            <eventsDispatchContext.Provider value={eventsStoreGlobalDispatch}>
+        <CEventsContext.Provider value={cEventsStoreGlobal}>
+            <cEventsDispatchContext.Provider value={cEventsStoreGlobalDispatch}>
                 {children}
-            </eventsDispatchContext.Provider>
-        </EventsContext.Provider>
+            </cEventsDispatchContext.Provider>
+        </CEventsContext.Provider>
     )
 }
 
 ///////////////////////////////////////////
 
 const __now = new Date(Date.now())
-export const initialEvent: CEventPropsType = {
+export const initialCEvent: CEventPropsType = {
     id: "",
     title: "",
     start: structuredClone(__now),
     end: structuredClone(__now),
 }
-export const initialEvents: CEventsPropsType = [] /*[
+export const initialCEvents: CEventsPropsType = [] /*[
     {
         id: "0",
         title: "task0",

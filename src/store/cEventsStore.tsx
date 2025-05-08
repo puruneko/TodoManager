@@ -10,23 +10,60 @@ import {
     useRef,
     useState,
 } from "react"
-import { MdPosition } from "./mdtextStore"
+import { genErrorRange, MdRange } from "./mdtextStore"
 
+export type CEventDepType = {
+    id: string
+    title: string
+    range: MdRange
+}
 export type CEventPropsType = {
     id: string
     title: string
     start: Date
-    end: Date
+    end: Date | null
+    range: MdRange
+    deps: CEventDepType[]
+    //
+    allDay: boolean
     //
     description?: string
     tags?: string[]
     checked?: boolean
-    position?: MdPosition
-    taskPosition?: MdPosition
-    descriptionPosition?: MdPosition
+    taskRange?: MdRange
+    descriptionRange?: MdRange
 }
 export type CEventsPropsType = NonNullable<Array<CEventPropsType>>
 
+//
+
+const __now = new Date(Date.now())
+export const genInitialCEvent = (initialValue = {}): CEventPropsType => {
+    return {
+        id: "",
+        title: "",
+        start: structuredClone(__now),
+        end: structuredClone(__now),
+        range: genErrorRange(),
+        deps: [],
+        allDay: false,
+        ...initialValue,
+    }
+}
+//
+//
+export const getCEventById = (cEvents: CEventsPropsType, id: string) => {
+    let cEvent: CEventPropsType | undefined = undefined
+    const _cEvent = cEvents.filter((e) => e.id === id)
+    if (_cEvent.length === 1) {
+        cEvent = _cEvent[0]
+    }
+    return cEvent
+}
+
+//
+//
+//
 type CEventsActionType =
     | {
           type: "set"
@@ -143,7 +180,7 @@ export const useCEventsValue = (): CEventsPropsType => {
 export const UseCEventsProviderComponent: React.FC<any> = ({ children }) => {
     const [cEventsStoreGlobal, cEventsStoreGlobalDispatch] = useReducer(
         cEventsReducer,
-        initialCEvents
+        [genInitialCEvent()]
     )
     return (
         <CEventsContext.Provider value={cEventsStoreGlobal}>
@@ -155,42 +192,3 @@ export const UseCEventsProviderComponent: React.FC<any> = ({ children }) => {
 }
 
 ///////////////////////////////////////////
-
-const __now = new Date(Date.now())
-export const initialCEvent: CEventPropsType = {
-    id: "",
-    title: "",
-    start: structuredClone(__now),
-    end: structuredClone(__now),
-}
-export const initialCEvents: CEventsPropsType = [] /*[
-    {
-        id: "0",
-        title: "task0",
-        start: structuredClone(__now),
-        end: structuredClone(__now),
-        tags: ["TAGtask0"],
-    },
-    {
-        id: "1",
-        title: "task1",
-        start: structuredClone(__now),
-        end: structuredClone(__now),
-        tags: ["TAGtask1"],
-    },
-    {
-        id: "2",
-        title: "task2",
-        start: structuredClone(__now),
-        end: structuredClone(__now),
-        tags: ["TAGtask2"],
-    },
-    {
-        id: "3",
-        title: "task3",
-        start: structuredClone(__now),
-        end: structuredClone(__now),
-        tags: ["TAGtask3"],
-    },
-]
-*/

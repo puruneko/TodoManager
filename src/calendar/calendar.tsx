@@ -37,19 +37,17 @@ import interactionPlugin, {
 //
 import "./calendar.css"
 import {
-    useCEvents,
     CEventPropsType,
-    initialCEvent,
-    initialCEvents,
     CEventsPropsType,
-    cEventsReducer,
-    useCEventsFunction,
     useCEventsValue,
+    getCEventById,
+    genInitialCEvent,
 } from "../store/cEventsStore"
 import {
     dateProps2stringType,
+    genErrorRange,
     getDateProps,
-    MdPosition,
+    MdRange,
     useMdProps,
     useMdPropsFunction,
 } from "../store/mdtextStore"
@@ -85,14 +83,6 @@ const getCEventInfoProps = (cEventInfoObj: any, propname: string) => {
     }
     return cEventInfoObj.extendedProps[propname]
 }
-const getCEventById = (cEvents: CEventsPropsType, id: string) => {
-    let cEvent: CEventPropsType | undefined = undefined
-    const _cEvent = cEvents.filter((e) => e.id === id)
-    if (_cEvent.length === 1) {
-        cEvent = _cEvent[0]
-    }
-    return cEvent
-}
 
 type SampleCalendarPropsType = {}
 const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
@@ -105,8 +95,9 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
     const mdPropsFunc = useMdPropsFunction(mdPropsDispatch)
     //
     const cEvents = useCEventsValue()
-    const [inputCEvent, setInputCEvent] =
-        useState<CEventPropsType>(initialCEvent)
+    const [inputCEvent, setInputCEvent] = useState<CEventPropsType>(
+        genInitialCEvent()
+    )
     const [displayInput, setDisplayInput] = useState(false)
     //
     const windowKeyDownRef = useRef<string | null>(null)
@@ -146,7 +137,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
         if (cEvent) {
             const title = cEvent.title
             const start = new Date(cEvent.start)
-            const end = new Date(cEvent.end)
+            const end = cEvent.end ? new Date(cEvent.end) : null
             setInputCEvent(() => {
                 return {
                     ...cEvent,
@@ -174,15 +165,15 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
                 "texteditor",
                 "getPosition",
                 {}
-            ) as MdPosition
+            ) as MdRange
             if (textareaPosition && textareaPosition.start.offset) {
                 let newCEvent: CEventPropsType | null = null
                 for (let cEvent of cEvents) {
                     if (
-                        (cEvent.position?.start.offset || 99999999) <=
+                        (cEvent.range?.start.offset || 99999999) <=
                             textareaPosition.start.offset &&
                         textareaPosition.start.offset <=
-                            (cEvent.position?.end.offset || -1)
+                            (cEvent.range?.end.offset || -1)
                     ) {
                         newCEvent = cEvent
                         break
@@ -197,12 +188,10 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
         } else {
             setInputCEvent(() => {
                 return Object.assign(
-                    {
-                        id: "",
-                        title: "",
+                    genInitialCEvent({
                         start: selection.start,
                         end: selection.end,
-                    },
+                    }),
                     {}
                 )
             })
@@ -216,7 +205,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
         updateTasks([__inputCEvent ? __inputCEvent : inputCEvent])
         //
         setInputCEvent(() => {
-            return { ...initialCEvent }
+            return { ...genInitialCEvent() }
         })
         setDisplayInput(false)
     }
@@ -235,7 +224,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
         })
             */
         mdPropsFunc.removeTasks([inputCEvent.id])
-        setInputCEvent(initialCEvent)
+        setInputCEvent(genInitialCEvent())
         setDisplayInput(false)
     }
     //
@@ -298,7 +287,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
         const handleCEventAreaClicked = (id) => {
             console.log(getCEventById(cEvents, id))
             icChannel.send("texteditor", "focusTextarea", {
-                position: getCEventInfoProps(fcEvent, "position"),
+                range: getCEventInfoProps(fcEvent, "range"),
             })
         }
         const handleCheckboxClicked = () => {
@@ -307,6 +296,9 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
                 cEvent.checked =
                     cEvent.checked !== undefined ? !cEvent.checked : true
                 mdPropsFunc.updateTasks([cEvent])
+                icChannel.send("texteditor", "setSelection", {
+                    range: getCEventInfoProps(fcEvent, "range"),
+                })
             }
         }
         const handleDragover = (e) => {
@@ -322,9 +314,9 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
             let droppedCEvent: CEventPropsType | null = null
             for (let cEvent of cEvents) {
                 if (
-                    (cEvent.position?.start.offset || 99999999) <=
+                    (cEvent.range?.start.offset || 99999999) <=
                         selectionStart &&
-                    selectionStart <= (cEvent.position?.end.offset || -1)
+                    selectionStart <= (cEvent.range?.end.offset || -1)
                 ) {
                     droppedCEvent = cEvent
                     break
@@ -346,6 +338,8 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
             if (d.end) {
                 timeText += `- ${d.end.hour}:${d.end.minute}`
             }
+            const tags = getCEventInfoProps(fcEvent, "tags")
+            const description = getCEventInfoProps(fcEvent, "description")
             //
             return (
                 <div
@@ -382,13 +376,15 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
                     </div>
                     <div className="calender-cEventcard-tags">
                         <p className="p-text-ellipsis">
-                            {getCEventInfoProps(fcEvent, "tags").join(",")}
+                            {tags ? tags.join(",") : ""}
                         </p>
                     </div>
                     <div className="calender-cEventcard-description">
-                        <p className="p-text-ellipsis">
-                            [desc]{getCEventInfoProps(fcEvent, "description")}
-                        </p>
+                        <pre>
+                            {description
+                                ? description.replace(/\n( {4}|\\t)/g, "\n")
+                                : ""}
+                        </pre>
                     </div>
                 </div>
             )

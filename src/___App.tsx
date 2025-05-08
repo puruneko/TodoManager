@@ -284,7 +284,7 @@ function App() {
                 )
                 textareaRef.current.focus()
             }
-            console.log("positionRange", monacoPositionRange)
+            console.log("rangeRange", monacoPositionRange)
         }
     }
     const toggleTaskItemState = (e: Event) => {

@@ -25,15 +25,7 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
 
 //
-import {
-    useCEvents,
-    CEventPropsType,
-    initialCEvent,
-    initialCEvents,
-    CEventsPropsType,
-    cEventsReducer,
-    useCEventsValue,
-} from "../store/cEventsStore"
+import { CEventsPropsType, useCEventsValue } from "../store/cEventsStore"
 import { __debugPrint__ } from "../debugtool/debugtool"
 
 const SampleDashboard: React.FC = (props) => {
@@ -65,7 +57,7 @@ const SampleDashboard: React.FC = (props) => {
                     <div key={name}>
                         <h2>tagname:{name}</h2>
                         {es.map((e) => {
-                            return <p key={e.title}>{e.title}</p>
+                            return <p key={e.id}>{e.title}</p>
                         })}
                     </div>
                 )

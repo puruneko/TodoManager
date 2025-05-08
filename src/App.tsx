@@ -25,7 +25,7 @@ const App = () => {
                             <div
                                 style={{
                                     margin: "10px",
-                                    flexBasis: "20vw",
+                                    flexBasis: "30vw",
                                 }}
                             >
                                 <Texteditor />
@@ -33,7 +33,7 @@ const App = () => {
                             <div
                                 style={{
                                     margin: "10px",
-                                    flexBasis: "65vw",
+                                    flexBasis: "60vw",
                                     flexGrow: 1,
                                 }}
                             >
@@ -42,7 +42,7 @@ const App = () => {
                             <div
                                 style={{
                                     margin: "10px",
-                                    flexBasis: "15vw",
+                                    flexBasis: "10vw",
                                 }}
                             >
                                 <Dashboard />

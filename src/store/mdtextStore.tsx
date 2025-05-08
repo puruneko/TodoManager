@@ -10,23 +10,60 @@ import {
     useRef,
     useState,
 } from "react"
-import { CEventsPropsType } from "./cEventsStore"
+import {
+    CEventPropsType,
+    CEventsPropsType,
+    getCEventById,
+} from "./cEventsStore"
 import { Point, Position } from "unist"
 import { __debugPrint__ } from "../debugtool/debugtool"
 import { dictMap } from "../utils/iterable"
 
-export type MdAt = {
-    line: number
+export type MdPosition = {
+    lineNumber: number
     column: number
     offset: number
 }
-export type MdPosition = {
-    start: MdAt
-    end: MdAt
+export type MdRange = {
+    start: MdPosition
+    end: MdPosition
+}
+
+export type MdTaskType = Omit<CEventPropsType, "start" | "end"> & {
+    start: CEventPropsType["start"] | null
+    end: CEventPropsType["start"] | null
 }
 
 export type MdPropsType = {
     mdtext: string
+    tasks: MdTaskType[]
+}
+
+/*
+const aaaa: MdTaskType = {
+    id: "",
+    title: "",
+    end: new Date(),
+    //@ts-ignore
+    range: genErrorRange(),
+    deps: [],
+}
+console.log(aaaa)
+*/
+
+export const genErrorRange = (): MdRange => {
+    return {
+        start: {
+            lineNumber: -1,
+            column: -1,
+            offset: -1,
+        },
+        end: {
+            lineNumber: -1,
+            column: -1,
+            offset: -1,
+        },
+    }
 }
 
 export const initialMdProps: MdPropsType = {
@@ -48,6 +85,7 @@ export const initialMdProps: MdPropsType = {
     - DESCRIPTION(5-1)
     - DESCRIPTION(5-2)
 `,
+    tasks: [],
 }
 
 type MdPropsActionType =
@@ -73,7 +111,7 @@ type MdPropsActionType =
           type: "updateText"
           payload: {
               mdtext: string
-              position: any
+              range: any
           }
       }
     | {
@@ -93,22 +131,26 @@ type MdPropsActionType =
           payload: {}
       }
 
-export const mdpos2cEventid = (mdpos: MdPosition): string => {
-    return `${mdpos.start.line}-${mdpos.start.column}-${mdpos.start.offset},${mdpos.end.line}-${mdpos.end.column}-${mdpos.end.offset}`
+export const mdRange2cEventid = (mdRange: MdRange): string => {
+    let eventid = `${mdRange.start.lineNumber}-${mdRange.start.column}-${mdRange.start.offset}`
+    if (mdRange.end) {
+        eventid += `,${mdRange.end.lineNumber}-${mdRange.end.column}-${mdRange.end.offset}`
+    }
+    return eventid
 }
-export const cEventid2mdpos = (cEventid: string): MdPosition => {
+export const cEventid2mdRange = (cEventid: string): MdRange => {
     const regexpMdposStr = new RegExp(
         "(\\d+)-(\\d+)-(\\d+),(\\d+)-(\\d+)-(\\d+)"
     )
     const m = cEventid.match(regexpMdposStr)
     let res = {
         start: {
-            line: -1,
+            lineNumber: -1,
             column: -1,
             offset: -1,
         },
         end: {
-            line: -1,
+            lineNumber: -1,
             column: -1,
             offset: -1,
         },
@@ -116,12 +158,12 @@ export const cEventid2mdpos = (cEventid: string): MdPosition => {
     if (m) {
         res = {
             start: {
-                line: Number(m[1]),
+                lineNumber: Number(m[1]),
                 column: Number(m[2]),
                 offset: Number(m[3]),
             },
             end: {
-                line: Number(m[4]),
+                lineNumber: Number(m[4]),
                 column: Number(m[5]),
                 offset: Number(m[6]),
             },
@@ -204,7 +246,7 @@ export const dateHashtagValue2dateRange = (dateHashtagValue: string) => {
 }
 export const dateRange2dateHashtagValue = (dateRange: {
     start: Date
-    end: Date
+    end: Date | null
 }) => {
     let d = getDateProps(dateRange.start, String)
     const startStr = dateProps2dateString(d) //`${d.year.padStat(4,'0')}-${d.month.padStat(2,'0')}-${d.day.padStat(2,'0')}T${d.hour.padStat(2,'0')}:${d.minute.padStat(2,'0')}`
@@ -221,39 +263,42 @@ export const dateRange2dateHashtagValue = (dateRange: {
 }
 
 /*
-export const position2indexRange = (text: string, position: Position) => {
+export const range2indexRange = (text: string, range: Position) => {
     const lines = text.split("\n")
     let indexRange = [0, 0]
     let count = 0
     let lineno = 1
-    for (; lineno < position.start.line; lineno++) {
+    for (; lineno < range.start.lineNumber; lineno++) {
         count += lines[lineno].length + 1
     }
-    count += position.start.column
+    count += range.start.column
     indexRange[0] = count
     count +=
-        position.start.line != position.end.line
-            ? lines[lineno - 1].length - position.start.column
+        range.start.lineNumber != range.end.lineNumber
+            ? lines[lineno - 1].length - range.start.column
             : 0
-    for (lineno++; lineno < position.end.line; lineno++) {
+    for (lineno++; lineno < range.end.lineNumber; lineno++) {
         count += lines[lineno].length + 1
     }
-    count += position.end.column
+    count += range.end.column
     indexRange[1] = count
     console.log(indexRange)
     return indexRange
 }
 
     */
-export const replaceTextByPosition = (
+export const replaceTextByRange = (
     text: string,
     replaceText: string,
-    position: MdPosition
+    range: MdRange
 ): string => {
+    if (!range.end) {
+        throw Error("range.end is null")
+    }
     return (
-        text.slice(0, position.start.offset) +
+        text.slice(0, range.start.offset) +
         replaceText +
-        text.slice(position.end.offset)
+        text.slice(range.end.offset)
     )
 }
 
@@ -324,20 +369,25 @@ export const mdPropsReducer = (
                     }
                     //既存タスクの更新
                     else {
-                        const position =
-                            task.taskPosition || cEventid2mdpos(task.id)
-                        const newLineText = `- [${task.checked ? "x" : " "}] ${
-                            task.title
-                        } ${tagsStr} #scheduled:${scheduledHashtagValue}`
-                        newMdtext = replaceTextByPosition(
-                            newMdtext,
-                            newLineText,
-                            position
-                        )
-                        __debugPrint__(
-                            "updateTasks in mdPropsReducer :: update",
-                            newLineText
-                        )
+                        const range = task.taskRange || task.range
+                        if (range) {
+                            const newLineText = `- [${
+                                task.checked ? "x" : " "
+                            }] ${
+                                task.title
+                            } ${tagsStr} #scheduled:${scheduledHashtagValue}`
+                            newMdtext = replaceTextByRange(
+                                newMdtext,
+                                newLineText,
+                                range
+                            )
+                            __debugPrint__(
+                                "updateTasks in mdPropsReducer :: update",
+                                newLineText
+                            )
+                        } else {
+                            throw Error(`range not found.(${task})`)
+                        }
                     }
                 }
                 return Object.assign(
@@ -349,12 +399,12 @@ export const mdPropsReducer = (
                 )
             })()
         case "removeTasks":
-            let positions: MdPosition[] = action.payload.ids.map((id) => {
-                return cEventid2mdpos(id)
+            let ranges: MdRange[] = action.payload.ids.map((id) => {
+                return cEventid2mdRange(id)
             })
             let newMdtext = state.mdtext
-            for (let pos of positions) {
-                newMdtext = replaceTextByPosition(newMdtext, "", pos)
+            for (let pos of ranges) {
+                newMdtext = replaceTextByRange(newMdtext, "", pos)
             }
             return Object.assign(
                 {
@@ -367,6 +417,7 @@ export const mdPropsReducer = (
             return Object.assign(
                 {
                     mdtext: "",
+                    tasks: [],
                 },
                 {}
             )
@@ -394,8 +445,8 @@ export const useMdPropsFunction = (dispatch: Dispatch<MdPropsActionType>) => {
             [dispatch]
         ),
         updateText: useCallback(
-            (mdtext: string, position: any) => {
-                dispatch({ type: "updateText", payload: { mdtext, position } })
+            (mdtext: string, range: any) => {
+                dispatch({ type: "updateText", payload: { mdtext, range } })
             },
             [dispatch]
         ),

@@ -22,7 +22,6 @@
 }
 
 .calender-cEventcard-header {
-    flex-basis: 0.5em;
     font-size: 0.5em;
     line-height: 1em;
     display: inline-flex;
@@ -30,7 +29,6 @@
 }
 
 .calender-cEventcard-title {
-    flex-basis: 0.75em;
     font-size: 0.75em;
     line-height: 1em;
     & child {
@@ -41,7 +39,6 @@
 }
 
 .calender-cEventcard-tags {
-    flex-basis: 0.5em;
     font-size: 0.5em;
     line-height: 1em;
     & child {
@@ -52,10 +49,11 @@
 }
 
 .calender-cEventcard-description {
-    /*flex-basis: 0.75em;*/
     font-size: 0.75em;
     line-height: 1em;
-    flex-grow: 10;
+    flex-shrink: 10;
+    overflow-y: hidden;
+    border-top: 1px dashed gray;
     & child {
         line-height: 1em;
         margin: 0 0.1em 0 0;

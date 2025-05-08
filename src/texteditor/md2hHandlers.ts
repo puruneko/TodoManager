@@ -1,3 +1,15 @@
+import { State } from "mdast-util-to-hast"
+
+import {
+    Node as MdastNode,
+    Nodes as MdastNodes,
+    Parents as MdastParents,
+    ListItem as MdastListItem,
+    Paragraph as MdastParagraph,
+    Text as MdastText,
+} from "mdast"
+import { Element as HastElement } from "hast"
+
 /**
  * Turn an mdast `listItem` node into hast.
  *
@@ -126,4 +138,30 @@ function listItemLoose(node) {
     return spread === null || spread === undefined
         ? node.children.length > 1
         : spread
+}
+
+////////////////////////////////
+
+const md2hHandler_message: MdastToHastHandlerType = (state, node, parent) => {
+    return {
+        type: "element",
+        tagName: "div",
+        properties: {
+            className: ["msg"],
+        },
+        children: state.all(node),
+    }
+}
+
+type MdastToHastHandlerType = (
+    state: State,
+    node: MdastNodes,
+    parent: MdastParents
+) => HastElement
+
+export const customMdastToHastHandlers: {
+    [key: string]: MdastToHastHandlerType
+} = {
+    message: md2hHandler_message,
+    listItem: listItemHandler,
 }

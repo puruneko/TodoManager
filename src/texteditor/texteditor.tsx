@@ -1,15 +1,7 @@
 /**
  * 各種モジュールのインストール
  */
-import React, {
-    useState,
-    useRef,
-    useMemo,
-    useCallback,
-    SetStateAction,
-    useEffect,
-    useReducer,
-} from "react"
+import React, { useState, useRef, useEffect } from "react"
 
 ////
 //https://github.com/suren-atoyan/monaco-react
@@ -24,372 +16,24 @@ import { unified } from "unified"
 import remarkParse from "remark-parse"
 import remarkGfm from "remark-gfm"
 import remarkRehype from "remark-rehype"
-import rehypeStringify from "rehype-stringify"
+//import rehypeStringify from "rehype-stringify"
 import production from "react/jsx-runtime"
 import rehypeReact from "rehype-react"
 
-import { inspect } from "unist-util-inspect"
-import { visit, Visitor } from "unist-util-visit"
-import { VFileCompatible } from "vfile"
-import {
-    Node as UnistNode,
-    Parent as UnistParent,
-    Literal as UnistLiteral,
-    Position,
-} from "unist"
-import {
-    Node as MdastNode,
-    Nodes as MdastNodes,
-    Parents as MdastParents,
-    ListItem as MdastListItem,
-    Paragraph as MdastParagraph,
-    Text as MdastText,
-} from "mdast"
-import { Element as HastElement } from "hast"
-import { State } from "mdast-util-to-hast"
-
-import { listItemHandler } from "./md2hHandlers"
+import { customMdastToHastHandlers, listItemHandler } from "./md2hHandlers"
 import { useCEvents, useCEventsFunction } from "../store/cEventsStore"
 import {
-    dateHashtagValue2dateRange,
-    mdpos2cEventid,
+    MdPosition,
     useMdProps,
     useMdPropsFunction,
 } from "../store/mdtextStore"
 import { __debugPrint__ } from "../debugtool/debugtool"
 import { useIcChannel } from "../store/interComponentChannelStore"
 import { Draggable } from "@fullcalendar/interaction/index.js"
-
-////////////////////////////////
-function isObject(target: unknown): target is { [key: string]: unknown } {
-    return typeof target === "object" && target !== null
-}
-
-// https://github.com/syntax-tree/unist#node
-export function isNode(node: unknown): node is Node {
-    return isObject(node) && "type" in node
-}
-
-// https://github.com/syntax-tree/unist#parent
-export function isParent(node: unknown): node is UnistParent {
-    return isObject(node) && Array.isArray(node.children)
-}
-
-// https://github.com/syntax-tree/unist#literal
-export function isLiteral(node: unknown): node is UnistLiteral {
-    return isObject(node) && "value" in node
-}
-
-// https://github.com/syntax-tree/mdast#paragraph
-export function isParagraph(node: UnistNode): node is MdastParagraph {
-    return isNode(node) && node.type === "paragraph"
-}
-
-// https://github.com/syntax-tree/mdast#text
-export function isText(node: unknown): node is Text {
-    return (
-        isLiteral(node) &&
-        node.type === "text" &&
-        typeof node.value === "string"
-    )
-}
-
-const MESSAGE_BEGGINING = ":::message\n"
-const MESSAGE_ENDING = "\n:::"
-
-function processFirstChild(children: Array<UnistNode>, identifier: string) {
-    const firstChild = children[0] as UnistLiteral
-    const firstValue = firstChild.value as string
-    if (firstValue === identifier) {
-        children.shift()
-    } else {
-        children[0] = {
-            ...firstChild,
-            value: firstValue.slice(identifier.length),
-        } as UnistLiteral
-    }
-}
-
-function processLastChild(children: Array<UnistNode>, identifier: string) {
-    const lastIndex = children.length - 1
-    const lastChild = children[lastIndex] as UnistLiteral
-    const lastValue = lastChild.value as string
-    if (lastValue === identifier) {
-        children.pop()
-    } else {
-        children[lastIndex] = {
-            ...lastChild,
-            value: lastValue.slice(0, lastValue.length - identifier.length),
-        } as UnistLiteral
-    }
-}
-
-function md2mdParserTester_message(node: MdastNode): node is MdastParagraph {
-    //console.log("in isMessagePattern", structuredClone({ node }))
-    if (!isParagraph(node)) {
-        return false
-    }
-
-    const { children } = node
-
-    const firstChild = children[0]
-    if (
-        //@ts-ignore
-        !(isText(firstChild) && firstChild.value.startsWith(MESSAGE_BEGGINING))
-    ) {
-        return false
-    }
-
-    const lastChild = children[children.length - 1]
-    //@ts-ignore
-    if (!(isText(lastChild) && lastChild.value.endsWith(MESSAGE_ENDING))) {
-        return false
-    }
-
-    return true
-}
-/**
- * visitのtest関数がtrueなら呼ばれる
- * 引数のnodeはtest関数で検査されたブロック単位のnode
- * @param node      test関数でマッチしたnode
- * @param index     引数parentから見た引数nodeのインデックス
- * @param parent    引数nodeの親要素
- * @returns undefined
- */
-const md2mdParserVisitor_message: Visitor<MdastParagraph, UnistParent> = (
-    node: MdastParagraph,
-    index: number | undefined,
-    parent: UnistParent | undefined
-) => {
-    if (!isParent(parent) || index === undefined) {
-        return
-    }
-    console.log("in visitor", structuredClone({ node, index, parent }))
-
-    const children = [...node.children]
-    processFirstChild(children, MESSAGE_BEGGINING)
-    processLastChild(children, MESSAGE_ENDING)
-
-    //
-    parent.children[index] = {
-        type: "message",
-        children,
-    } as UnistParent
-}
-const md2mdParserPlugin_message = () => {
-    return (tree: Node, _file: VFileCompatible) => {
-        console.log("--->myParserPlugin", structuredClone({ tree, _file }))
-        //@ts-ignore
-        visit(tree, md2mdParserTester_message, md2mdParserVisitor_message)
-        console.log("<---myParserPlugin")
-    }
-}
-const md2hHandler_message: MdastToHastHandlerType = (state, node, parent) => {
-    return {
-        type: "element",
-        tagName: "div",
-        properties: {
-            className: ["msg"],
-        },
-        children: state.all(node),
-    }
-}
-
-////////////////////////////////
-
-type MdastToHastHandlerType = (
-    state: State,
-    node: MdastNodes,
-    parent: MdastParents
-) => HastElement
-const customMdastToHastHandlers: { [key: string]: MdastToHastHandlerType } = {
-    message: md2hHandler_message,
-    listItem: listItemHandler,
-}
-
-const component_message = (props) => {
-    console.log("props", props)
-    return (
-        <div>
-            {props.children.map((c) => {
-                console.log("type", typeof c)
-                if (typeof c === "string") {
-                    return c
-                }
-                return c
-            })}
-        </div>
-    )
-}
-const component_dev = (props) => {
-    return (
-        <>
-            <input type="checkbox" />
-            {props.children}
-        </>
-    )
-}
-const customComponentsFromHast = {
-    //message: component_message,
-    mycheckbox: component_dev,
-}
-
-////////////////////////////////
-const regexpHashtag = new RegExp("(?<=^|[ 　]+?)#(\\S+)(?<=[ 　]*)", "g")
-const getHashtag = (linetext: string) => {
-    return Array.from(linetext.matchAll(regexpHashtag), (m) => m[1])
-}
-const removeHashtag = (linetext: string) => {
-    return linetext.replace(regexpHashtag, "").trim()
-}
-const getText = (tree) => {
-    let text = ""
-    if (tree.type == "text") {
-        return tree.value
-    }
-    for (let child of tree.children || []) {
-        if (child.type == "text") {
-            text += child.value
-        } else {
-            text += getText(child)
-        }
-        if (child.type == "paragraph") {
-            text += "\n"
-        }
-    }
-    return text
-}
-const getTasks = (tree) => {
-    let tasks: any[] = []
-    if (tree.children) {
-        let listitems: MdastListItem[] = []
-        for (let treeChild of tree.children) {
-            if (treeChild.type == "list") {
-                listitems = treeChild.children
-                for (let listitem of listitems) {
-                    if (listitem.checked !== null) {
-                        //descriptionの抽出
-                        let description: any = {
-                            items: listitem.children.slice(1),
-                            value: "",
-                        }
-                        description.value = getText({
-                            type: "listitem",
-                            children: description.items,
-                        }).trim()
-                        description.pos =
-                            description.items.length > 0
-                                ? {
-                                      start: description.items[0].position
-                                          ?.start,
-                                      end: description.items[
-                                          description.items.length - 1
-                                      ].position?.end,
-                                  }
-                                : undefined
-                        //task本文の処理
-                        const paragraphItem = listitem
-                            .children[0] as MdastParagraph
-                        const textItem = paragraphItem.children[0] as MdastText
-                        const linetext = textItem.value
-                        const pos = listitem.position
-                        const taskPos = {
-                            start: pos?.start,
-                            end: paragraphItem.position?.end,
-                        }
-                        const hashtags = getHashtag(linetext)
-                        const dateHashtagValue = hashtags
-                            .filter((h) =>
-                                h.replace("#", "").startsWith("scheduled")
-                            )
-                            .map((h) => {
-                                return dateHashtagValue2dateRange(h)
-                            }) //[NOTE]scheduledタグは１つしか付けられない想定の実装
-                        __debugPrint__(textItem)
-                        //taskの登録
-                        if (pos) {
-                            tasks.push({
-                                id: mdpos2cEventid(pos),
-                                title: removeHashtag(linetext),
-                                position: pos,
-                                taskPosition: taskPos,
-                                checked: listitem.checked,
-                                tags: hashtags,
-                                start:
-                                    dateHashtagValue.length != 0
-                                        ? dateHashtagValue[0].start
-                                        : null,
-                                end:
-                                    dateHashtagValue.length != 0
-                                        ? dateHashtagValue[0].end
-                                        : null,
-                                allDay: !(dateHashtagValue.length != 0
-                                    ? dateHashtagValue[0].end
-                                    : null),
-                                description: description.value, //"dummy text.".repeat(10),
-                                descriptionPosition: description.pos,
-                            })
-                        } else {
-                            throw Error(`pos is undefined(${linetext})`)
-                        }
-                    }
-                    /*
-                    if (listitem.children.some((c) => c.type == "list")) {
-                        getTask(listitem).forEach((task) => {
-                            tasks.push(task)
-                        })
-                    }
-                        */
-                }
-            }
-            getTasks(treeChild).forEach((task) => {
-                tasks.push(task)
-            })
-        }
-    }
-    return tasks
-}
-
-//
-//monaco
-//
-const getMonacoSelection = (
-    editor: monaco.editor.IStandaloneCodeEditor | undefined
-) => {
-    const model = editor?.getModel()
-    if (editor && model) {
-        return editor.getSelection()
-    }
-}
-const getMonacoPosition = (
-    editor: monaco.editor.IStandaloneCodeEditor | undefined
-) => {
-    const model = editor?.getModel()
-    if (editor && model) {
-        const selection = editor.getSelection()
-        if (selection) {
-            return {
-                start: {
-                    line: selection.startLineNumber,
-                    column: selection.startColumn,
-                    offset: model.getOffsetAt({
-                        lineNumber: selection.startLineNumber,
-                        column: selection.startColumn,
-                    }),
-                },
-                end: {
-                    line: selection.positionLineNumber,
-                    column: selection.positionColumn,
-                    offset: model.getOffsetAt({
-                        lineNumber: selection.positionLineNumber,
-                        column: selection.positionColumn,
-                    }),
-                },
-            } as Position
-        }
-    }
-    return null
-}
+import { customComponentsFromHast } from "./h2reactHandler"
+import { md2mdParserPlugin_message } from "./md2mdHandler"
+import { getTasks } from "./mdtext2taskHandler"
+import { getMonacoPosition } from "./monacoUtils"
 
 ////////////////////////////////
 ////////////////////////////////
@@ -401,9 +45,11 @@ const getMonacoPosition = (
 type SampleTextareaPropsType = { debug?: any }
 const SampleTexteditor: React.FC<SampleTextareaPropsType> = (props) => {
     //
-    const icChannel = useIcChannel("texteditor")
     const debugRef = useRef<any>("")
     const [debug, setDebug] = useState<any>("")
+    //
+    //
+    const icChannel = useIcChannel("texteditor")
     //
     const [mdProps, mdPropsDispatch] = useMdProps()
     const mdPropsFunc = useMdPropsFunction(mdPropsDispatch)
@@ -440,7 +86,7 @@ const SampleTexteditor: React.FC<SampleTextareaPropsType> = (props) => {
         //
         //inter component
         //
-        icChannel.on("focusTextarea", (payload: { position: Position }) => {
+        icChannel.on("focusTextarea", (payload: { position: MdPosition }) => {
             if (monacoRef.current) {
                 const startpos = payload.position.start || null
                 monacoRef.current.setSelection({
@@ -489,7 +135,7 @@ const SampleTexteditor: React.FC<SampleTextareaPropsType> = (props) => {
             //
             // generate tasks
             //
-            const newTasks = getTasks(parsed)
+            const newTasks = getTasks(mdtext, parsed)
             cEventsFunc.set(newTasks)
             __debugPrint__("getTask", newTasks)
         }

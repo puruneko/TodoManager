@@ -11,9 +11,19 @@ import {
     useState,
 } from "react"
 import { CEventsPropsType } from "./cEventsStore"
-import { Position } from "unist"
+import { Point, Position } from "unist"
 import { __debugPrint__ } from "../debugtool/debugtool"
 import { dictMap } from "../utils/iterable"
+
+export type MdAt = {
+    line: number
+    column: number
+    offset: number
+}
+export type MdPosition = {
+    start: MdAt
+    end: MdAt
+}
 
 export type MdPropsType = {
     mdtext: string
@@ -83,10 +93,10 @@ type MdPropsActionType =
           payload: {}
       }
 
-export const mdpos2cEventid = (mdpos: Position): string => {
+export const mdpos2cEventid = (mdpos: MdPosition): string => {
     return `${mdpos.start.line}-${mdpos.start.column}-${mdpos.start.offset},${mdpos.end.line}-${mdpos.end.column}-${mdpos.end.offset}`
 }
-export const cEventid2mdpos = (cEventid: string): Position => {
+export const cEventid2mdpos = (cEventid: string): MdPosition => {
     const regexpMdposStr = new RegExp(
         "(\\d+)-(\\d+)-(\\d+),(\\d+)-(\\d+)-(\\d+)"
     )
@@ -238,7 +248,7 @@ export const position2indexRange = (text: string, position: Position) => {
 export const replaceTextByPosition = (
     text: string,
     replaceText: string,
-    position: Position
+    position: MdPosition
 ): string => {
     return (
         text.slice(0, position.start.offset) +
@@ -339,7 +349,7 @@ export const mdPropsReducer = (
                 )
             })()
         case "removeTasks":
-            let positions: Position[] = action.payload.ids.map((id) => {
+            let positions: MdPosition[] = action.payload.ids.map((id) => {
                 return cEventid2mdpos(id)
             })
             let newMdtext = state.mdtext

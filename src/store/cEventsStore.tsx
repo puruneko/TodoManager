@@ -10,7 +10,7 @@ import {
     useRef,
     useState,
 } from "react"
-import { Position } from "unist"
+import { MdPosition } from "./mdtextStore"
 
 export type CEventPropsType = {
     id: string
@@ -21,9 +21,9 @@ export type CEventPropsType = {
     description?: string
     tags?: string[]
     checked?: boolean
-    position?: Position
-    taskPosition?: Position
-    descriptionPosition?: Position
+    position?: MdPosition
+    taskPosition?: MdPosition
+    descriptionPosition?: MdPosition
 }
 export type CEventsPropsType = NonNullable<Array<CEventPropsType>>
 

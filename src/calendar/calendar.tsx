@@ -49,13 +49,13 @@ import {
 import {
     dateProps2stringType,
     getDateProps,
+    MdPosition,
     useMdProps,
     useMdPropsFunction,
 } from "../store/mdtextStore"
 import { __debugPrint__ } from "../debugtool/debugtool"
 import { useIcChannel } from "../store/interComponentChannelStore"
 import { nonPropagatingEvent } from "../utils/htmlEvents"
-import { Position } from "unist"
 
 const cEventInfoFirstProps = [
     "source",
@@ -174,7 +174,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
                 "texteditor",
                 "getPosition",
                 {}
-            ) as Position
+            ) as MdPosition
             if (textareaPosition && textareaPosition.start.offset) {
                 let newCEvent: CEventPropsType | null = null
                 for (let cEvent of cEvents) {

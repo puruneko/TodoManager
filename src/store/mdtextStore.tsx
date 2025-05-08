@@ -23,10 +23,20 @@ export const initialMdProps: MdPropsType = {
     mdtext: `aaa
 # PJ1
 - [ ] task1 #TAGtask10 #TAGtask10_2
+    - DESCRIPTION(1-1)*bold*EOL
+    - DESCRIPTION(1-2)
 - [ ] task2 #TAGtask20 #TAGtask2
-- [x] task3 #TAGtask30
+    - DESCRIPTION(2-1)
+    - DESCRIPTION(2-2)
+- [x] task3 #TAGtask30 #scheduled:2025-5-5T15:00~2025-5-5T16:00
+    - DESCRIPTION(3-1)
+    - DESCRIPTION(3-2)
 - [ ] task4 #TAGtask40
+    - DESCRIPTION(4-1)
+    - DESCRIPTION(4-2)
 - [ ] task5 #TAGtask50 #scheduled:2025-5-5T10:00~2025-5-5T11:00
+    - DESCRIPTION(5-1)
+    - DESCRIPTION(5-2)
 `,
 }
 
@@ -110,29 +120,39 @@ export const cEventid2mdpos = (cEventid: string): Position => {
     return res
 }
 export const getDateProps = (d: Date, typeFunc: any = Number) => {
-    return {
-        year: typeFunc(d.getFullYear()),
-        month: typeFunc(d.getMonth() + 1),
-        day: typeFunc(d.getDate()),
-        hour: typeFunc(d.getHours()),
-        minute: typeFunc(d.getMinutes()),
-        second: typeFunc(d.getSeconds()),
+    try {
+        return {
+            year: typeFunc(d.getFullYear()),
+            month: typeFunc(d.getMonth() + 1),
+            day: typeFunc(d.getDate()),
+            hour: typeFunc(d.getHours()),
+            minute: typeFunc(d.getMinutes()),
+            second: typeFunc(d.getSeconds()),
+        }
+    } catch (e) {
+        return null
     }
 }
 export const dateProps2stringType = (dateProps: any) => {
-    return {
-        year: String(dateProps.year).padStart(4, "0"),
-        month: String(dateProps.month).padStart(2, "0"),
-        day: String(dateProps.day).padStart(2, "0"),
-        hour: String(dateProps.hour).padStart(2, "0"),
-        minute: String(dateProps.minute).padStart(2, "0"),
-        second: String(dateProps.second).padStart(2, "0"),
+    if (dateProps) {
+        return {
+            year: String(dateProps.year).padStart(4, "0"),
+            month: String(dateProps.month).padStart(2, "0"),
+            day: String(dateProps.day).padStart(2, "0"),
+            hour: String(dateProps.hour).padStart(2, "0"),
+            minute: String(dateProps.minute).padStart(2, "0"),
+            second: String(dateProps.second).padStart(2, "0"),
+        }
     }
+    return null
 }
 export const dateProps2dateString = (dateProps: any) => {
     const d = dateProps2stringType(dateProps)
     __debugPrint__("dateProps2dateString", d)
-    return `${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
+    if (d) {
+        return `${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
+    }
+    return ""
 }
 const regstrDateHashtag = new RegExp(
     "[~]?(\\d{4}-\\d{1,2}-\\d{1,2})(T(\\d{1,2}(:\\d{1,2}(:\\d{1,2})?)?))?",
@@ -166,7 +186,10 @@ export const dateHashtagValue2dateRange = (dateHashtagValue: string) => {
     )
     return {
         start: dates[0].date,
-        end: dates[1] ? dates[1].date : dates[0].date,
+        end:
+            dates[1] && !Number.isNaN(dates[1].date.getTime())
+                ? dates[1].date
+                : null,
     }
 }
 export const dateRange2dateHashtagValue = (dateRange: {
@@ -176,7 +199,10 @@ export const dateRange2dateHashtagValue = (dateRange: {
     let d = getDateProps(dateRange.start, String)
     const startStr = dateProps2dateString(d) //`${d.year.padStat(4,'0')}-${d.month.padStat(2,'0')}-${d.day.padStat(2,'0')}T${d.hour.padStat(2,'0')}:${d.minute.padStat(2,'0')}`
     let endStr = ""
-    if (dateRange.start.getTime() !== dateRange.end.getTime()) {
+    if (
+        dateRange.end &&
+        dateRange.start.getTime() !== dateRange.end.getTime()
+    ) {
         d = getDateProps(dateRange.end)
         endStr = `~${dateProps2dateString(d)}` //`~${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
     }
@@ -259,16 +285,20 @@ export const mdPropsReducer = (
                 for (let task of action.payload.tasks) {
                     const tagsStr = task.tags
                         ? task.tags
+                              .filter((tag) => {
+                                  return !tag.startsWith("scheduled:")
+                              })
                               .map((tag) => {
                                   return `#${tag}`
                               })
                               .join(" ")
                         : ""
+                    const scheduledHashtagValue = dateRange2dateHashtagValue({
+                        ...task,
+                    })
                     //新規タスクの追加
                     if (task.id === "") {
                         let newLineText = "\n"
-                        const scheduledHashtagValue =
-                            dateRange2dateHashtagValue({ ...task })
                         newLineText += `- [${task.checked ? "x" : " "}] ${
                             task.title
                         } ${tagsStr} #scheduled:${scheduledHashtagValue}`
@@ -284,10 +314,11 @@ export const mdPropsReducer = (
                     }
                     //既存タスクの更新
                     else {
-                        const position = cEventid2mdpos(task.id)
+                        const position =
+                            task.taskPosition || cEventid2mdpos(task.id)
                         const newLineText = `- [${task.checked ? "x" : " "}] ${
                             task.title
-                        } ${tagsStr}`
+                        } ${tagsStr} #scheduled:${scheduledHashtagValue}`
                         newMdtext = replaceTextByPosition(
                             newMdtext,
                             newLineText,

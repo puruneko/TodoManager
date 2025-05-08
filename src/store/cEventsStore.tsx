@@ -10,6 +10,7 @@ import {
     useRef,
     useState,
 } from "react"
+import { Position } from "unist"
 
 export type CEventPropsType = {
     id: string
@@ -20,6 +21,9 @@ export type CEventPropsType = {
     description?: string
     tags?: string[]
     checked?: boolean
+    position?: Position
+    taskPosition?: Position
+    descriptionPosition?: Position
 }
 export type CEventsPropsType = NonNullable<Array<CEventPropsType>>
 

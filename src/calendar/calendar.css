@@ -7,9 +7,10 @@
 
 .calender-cEventcard {
     max-width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: start;
     font-size: 1rem;
 }
 
@@ -51,9 +52,10 @@
 }
 
 .calender-cEventcard-description {
-    flex-basis: 0.75em;
+    /*flex-basis: 0.75em;*/
     font-size: 0.75em;
     line-height: 1em;
+    flex-grow: 10;
     & child {
         line-height: 1em;
         margin: 0 0.1em 0 0;

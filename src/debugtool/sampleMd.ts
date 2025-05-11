@@ -1,4 +1,23 @@
-const sampleMd = `
+export const debugMdTextSimple = `aaa
+# PJ1
+- [ ] task1 #TAGtask10 #TAGtask10_2
+    - DESCRIPTION(1-1)*bold*EOL
+    - DESCRIPTION(1-2)
+- [ ] task2 #TAGtask20 #TAGtask2
+    - DESCRIPTION(2-1)
+    - DESCRIPTION(2-2)
+- [x] task3 #TAGtask30 #scheduled:2025-5-5T15:00~2025-5-5T16:00
+    - DESCRIPTION(3-1)
+    - DESCRIPTION(3-2)
+- [ ] task4 #TAGtask40
+    - DESCRIPTION(4-1)
+    - DESCRIPTION(4-2)
+- [ ] task5 #TAGtask50 #scheduled:2025-5-5T10:00~2025-5-5T11:00
+    - DESCRIPTION(5-1)
+    - DESCRIPTION(5-2)
+`
+
+export const debugMdText = `
 # PCMC運用整理
 -検討事項
 -  [x] PPF/PV直下での端末費用の振りわけ方法

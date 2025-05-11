@@ -10,17 +10,21 @@ import {
 import { Node as UnistNode, Position as UnistPosition } from "unist"
 
 import {
+    CEventDepType,
     dateHashtagValue2dateRange,
     MdRange,
     mdRange2cEventid,
     MdTaskType,
-} from "../store/mdtextStore"
-import { __debugPrint__ } from "../debugtool/debugtool"
-import {
-    CEventDepType,
-    CEventPropsType,
-    CEventsPropsType,
-} from "../store/cEventsStore"
+} from "../store/mdPropsStore"
+import { __debugPrint__impl } from "../debugtool/debugtool"
+
+//
+//
+const __debugPrint__ = (...args: any) => {
+    __debugPrint__impl("<mdtextstore>", ...args)
+}
+//
+//
 
 type UnistPositionWithOffset = {
     start: {
@@ -53,8 +57,8 @@ const unistPosition2mdRange = (position: UnistPosition): MdRange => {
             offset: position.start.offset,
         },
         end: {
-            lineNumber: position.start.line,
-            column: position.start.column,
+            lineNumber: position.end.line,
+            column: position.end.column,
             offset: position.end.offset,
         },
     }
@@ -109,8 +113,8 @@ function nodeWithPosition<T extends UnistNode>(node: T): T & MdastMdNode {
                 offset: node.position.start.offset,
             },
             end: {
-                line: node.position.start.line,
-                column: node.position.start.column,
+                line: node.position.end.line,
+                column: node.position.end.column,
                 offset: node.position.end.offset,
             },
         },

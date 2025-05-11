@@ -1,7 +1,7 @@
 //https://microsoft.github.io/monaco-editor/docs.html
 import monaco from "monaco-editor"
 import { Position } from "unist"
-import { MdPosition, MdRange } from "../store/mdtextStore"
+import { MdPosition, MdRange } from "../store/mdPropsStore"
 
 //
 export const getMonacoSelection = (

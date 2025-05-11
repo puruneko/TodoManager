@@ -20,8 +20,8 @@ import rehypeReact from "rehype-react"
 //
 import { customMdastToHastHandlers } from "./md2hHandlers"
 import { useCEvents, useCEventsFunction } from "../store/cEventsStore"
-import { MdRange, useMdProps, useMdPropsFunction } from "../store/mdtextStore"
-import { __debugPrint__ } from "../debugtool/debugtool"
+import { MdRange, useMdProps, useMdPropsFunction } from "../store/mdPropsStore"
+import { __debugPrint__impl } from "../debugtool/debugtool"
 import { useIcChannel } from "../store/interComponentChannelStore"
 import { customComponentsFromHast } from "./h2reactHandler"
 import { md2mdParserPlugin_message } from "./md2mdHandler"
@@ -31,6 +31,14 @@ import {
     getMonacoScrollTopPxByLineNumber,
     mdRange2monacoRange,
 } from "./monacoUtils"
+
+//
+//
+const __debugPrint__ = (...args: any) => {
+    __debugPrint__impl("<remarkProcessing>", ...args)
+}
+//
+//
 
 let mdProcessor: any = null
 
@@ -64,20 +72,21 @@ export const initializeMdProcessor = () => {
     return mdProcessor
 }
 
-export const parseMarkdown = async (mdtext: string) => {
-    if (mdProcessor) {
-        const parsed = mdProcessor.parse(mdtext)
-        const transformed = mdProcessor.runSync(parsed)
-        const contents = await mdProcessor.process(mdtext)
-        const reactComponent = contents.result
-        __debugPrint__("parsed", {
-            parsed,
-            transformed,
-            contents,
-        })
-        return { parsed, transformed, contents, reactComponent }
+export const parseMarkdown = (mdtext: string) => {
+    if (!mdProcessor) {
+        mdProcessor = initializeMdProcessor()
     }
-    return null
+    const mdastTree = mdProcessor.parse(mdtext)
+    const hastTree = mdProcessor.runSync(mdastTree)
+    //const contents = await mdProcessor.process(mdtext)
+    const compiled = mdProcessor.processSync(mdtext)
+    const reactComponent = compiled.result
+    __debugPrint__("parsed", {
+        mdastTree,
+        hastTree,
+        compiled,
+    })
+    return { mdastTree, hastTree, compiled, reactComponent }
 }
 
 const gent = (mdtext, parsed) => {

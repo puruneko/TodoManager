@@ -1,3 +1,6 @@
+//@ts-nocheck
+
+//
 import {
     createContext,
     Dispatch,
@@ -14,10 +17,22 @@ import {
     CEventPropsType,
     CEventsPropsType,
     getCEventById,
+    useCEvents,
+    useCEventsFunction,
 } from "./cEventsStore"
 import { Point, Position } from "unist"
-import { __debugPrint__ } from "../debugtool/debugtool"
+import { __debugPrint__impl } from "../debugtool/debugtool"
 import { dictMap } from "../utils/iterable"
+import { parseMarkdown } from "../texteditor/remarkProcessing"
+import { getTasks } from "../texteditor/mdtext2taskHandler"
+
+//
+//
+const __debugPrint__ = (...args: any) => {
+    __debugPrint__impl("<mdtextstore>", ...args)
+}
+//
+//
 
 export type MdPosition = {
     lineNumber: number
@@ -36,6 +51,7 @@ export type MdTaskType = Omit<CEventPropsType, "start" | "end"> & {
 
 export type MdPropsType = {
     mdtext: string
+    parsed: any
     tasks: MdTaskType[]
 }
 
@@ -50,24 +66,7 @@ const aaaa: MdTaskType = {
 }
 console.log(aaaa)
 */
-
-export const genErrorRange = (): MdRange => {
-    return {
-        start: {
-            lineNumber: -1,
-            column: -1,
-            offset: -1,
-        },
-        end: {
-            lineNumber: -1,
-            column: -1,
-            offset: -1,
-        },
-    }
-}
-
-export const initialMdProps: MdPropsType = {
-    mdtext: `aaa
+const debugInitialMdtext = `aaa
 # PJ1
 - [ ] task1 #TAGtask10 #TAGtask10_2
     - DESCRIPTION(1-1)*bold*EOL
@@ -84,9 +83,7 @@ export const initialMdProps: MdPropsType = {
 - [ ] task5 #TAGtask50 #scheduled:2025-5-5T10:00~2025-5-5T11:00
     - DESCRIPTION(5-1)
     - DESCRIPTION(5-2)
-`,
-    tasks: [],
-}
+`
 
 type MdPropsActionType =
     | {
@@ -302,40 +299,96 @@ export const replaceTextByRange = (
     )
 }
 
+/**
+ * mdpropsを作成する
+ * @param mdtext
+ * @returns
+ */
+export const genBrandnewMdProps = (mdtext: string): MdPropsType => {
+    const parsed = parseMarkdown(mdtext)
+    const tasks = getTasks(mdtext, parsed.mdastTree)
+    return {
+        mdtext,
+        parsed,
+        tasks,
+    }
+}
+
+export const genInitialMdProps = (props = {}): MdPropsType => {
+    return {
+        mdtext: "",
+        parsed: null,
+        tasks: [],
+        ...props,
+    }
+}
+
+export const genErrorRange = (): MdRange => {
+    return {
+        start: {
+            lineNumber: -1,
+            column: -1,
+            offset: -1,
+        },
+        end: {
+            lineNumber: -1,
+            column: -1,
+            offset: -1,
+        },
+    }
+}
+
+/**
+ * mdPropsの更新の実装部分
+ * @param state
+ * @param action
+ * @returns
+ */
 export const mdPropsReducer = (
     state: MdPropsType,
     action: MdPropsActionType
 ): MdPropsType => {
+    let newState = state
     switch (action.type) {
         case "set":
-            return structuredClone(action.payload.mdprops)
+            newState = structuredClone(action.payload.mdprops)
+            break
         case "update":
-            return Object.assign(
+            newState = Object.assign(
                 {
                     ...state,
                     ...action.payload.mdprops,
                 },
                 {}
             )
+            break
         case "setText":
+            const mdtext = action.payload.mdtext
             const res = Object.assign(
                 {
                     ...state,
-                    mdtext: action.payload.mdtext,
+                    ...genBrandnewMdProps(mdtext),
                 },
                 {}
             )
             __debugPrint__("setText in mdPropsReducer", state, action, res)
-            return res
+
+            const [cEvents, cEventsDispatch] = useCEvents()
+            const cEventsFunc = useCEventsFunction(cEventsDispatch)
+            //@ts-ignore
+            cEventsFunc.set(res.tasks)
+            newState = res
+            break
         case "updateText": //TODO
-            return Object.assign(
+            newState = Object.assign(
                 {
                     ...state,
                 },
                 {}
             )
+            break
         case "updateTasks":
-            return (() => {
+            newState = (() => {
                 let newMdtext = state.mdtext
                 for (let task of action.payload.tasks) {
                     const tagsStr = task.tags
@@ -393,11 +446,12 @@ export const mdPropsReducer = (
                 return Object.assign(
                     {
                         ...state,
-                        mdtext: newMdtext,
+                        ...genBrandnewMdProps(newMdtext),
                     },
                     {}
                 )
             })()
+            break
         case "removeTasks":
             let ranges: MdRange[] = action.payload.ids.map((id) => {
                 return cEventid2mdRange(id)
@@ -406,22 +460,20 @@ export const mdPropsReducer = (
             for (let pos of ranges) {
                 newMdtext = replaceTextByRange(newMdtext, "", pos)
             }
-            return Object.assign(
+            newState = Object.assign(
                 {
                     ...state,
-                    mdtext: newMdtext,
+                    ...genBrandnewMdProps(newMdtext),
                 },
                 {}
             )
+            break
         case "flush":
-            return Object.assign(
-                {
-                    mdtext: "",
-                    tasks: [],
-                },
-                {}
-            )
+            newState = Object.assign(genInitialMdProps(), {})
+            break
     }
+
+    return newState
 }
 export const useMdPropsFunction = (dispatch: Dispatch<MdPropsActionType>) => {
     const funcs = {
@@ -468,6 +520,12 @@ export const useMdPropsFunction = (dispatch: Dispatch<MdPropsActionType>) => {
     }
     return funcs
 }
+
+/**
+ * mdpropsの初期値
+ */
+export const initialMdProps: MdPropsType =
+    genBrandnewMdProps(debugInitialMdtext)
 
 /**
  * cEventsの本体
@@ -523,9 +581,16 @@ export const UseMdPropsProviderComponent: React.FC<any> = ({ children }) => {
     )
     return (
         <MdPropsContext.Provider value={mdPropsStoreGlobal}>
+            {children}
+        </MdPropsContext.Provider>
+    )
+    /*
+    return (
+        <MdPropsContext.Provider value={mdPropsStoreGlobal}>
             <MdPropsDispatchContext.Provider value={mdPropsStoreGlobalDispatch}>
                 {children}
             </MdPropsDispatchContext.Provider>
         </MdPropsContext.Provider>
     )
+    */
 }

@@ -120,7 +120,6 @@ const md2mdParserVisitor_message: Visitor<MdastParagraph, UnistParent> = (
     if (!isParent(parent) || index === undefined) {
         return
     }
-    console.log("in visitor", structuredClone({ node, index, parent }))
 
     const children = [...node.children]
     processFirstChild(children, MESSAGE_BEGGINING)
@@ -135,9 +134,7 @@ const md2mdParserVisitor_message: Visitor<MdastParagraph, UnistParent> = (
 
 export const md2mdParserPlugin_message = () => {
     return (tree: Node, _file: VFileCompatible) => {
-        console.log("--->myParserPlugin", structuredClone({ tree, _file }))
         //@ts-ignore
         visit(tree, md2mdParserTester_message, md2mdParserVisitor_message)
-        console.log("<---myParserPlugin")
     }
 }

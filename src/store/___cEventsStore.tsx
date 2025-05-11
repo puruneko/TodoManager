@@ -10,7 +10,16 @@ import {
     useRef,
     useState,
 } from "react"
-import { genErrorRange, MdRange } from "./mdtextStore"
+import { genErrorRange, MdRange } from "./mdPropsStore"
+import { __debugPrint__impl } from "../debugtool/debugtool"
+
+//
+//
+const __debugPrint__ = (...args: any) => {
+    __debugPrint__impl("<cEventStore>", ...args)
+}
+//
+//
 
 export type CEventDepType = {
     id: string
@@ -50,6 +59,7 @@ export const genInitialCEvent = (initialValue = {}): CEventPropsType => {
         ...initialValue,
     }
 }
+export const initialCEvents = [genInitialCEvent()]
 //
 //
 export const getCEventById = (cEvents: CEventsPropsType, id: string) => {
@@ -90,6 +100,7 @@ export const cEventsReducer = (
 ): CEventsPropsType => {
     switch (action.type) {
         case "set":
+            __debugPrint__("set", { state, action })
             return structuredClone(action.payload.cEvents)
         case "update":
             const updatingIds = action.payload.cEvents.map((e) => e.id)
@@ -180,7 +191,7 @@ export const useCEventsValue = (): CEventsPropsType => {
 export const UseCEventsProviderComponent: React.FC<any> = ({ children }) => {
     const [cEventsStoreGlobal, cEventsStoreGlobalDispatch] = useReducer(
         cEventsReducer,
-        [genInitialCEvent()]
+        initialCEvents
     )
     return (
         <CEventsContext.Provider value={cEventsStoreGlobal}>

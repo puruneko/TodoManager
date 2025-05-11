@@ -9,6 +9,7 @@ import React, {
     SetStateAction,
     useEffect,
     useReducer,
+    useContext,
 } from "react"
 
 // FullCalendarコンポーネント。
@@ -25,25 +26,34 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
 
 //
-import { CEventsPropsType, useCEventsValue } from "../store/cEventsStore"
-import { __debugPrint__ } from "../debugtool/debugtool"
+import { __debugPrint__impl } from "../debugtool/debugtool"
+import { CEventPropsType, MdPropsContext } from "../store/mdPropsStore"
 
+//
+//
+const __debugPrint__ = (...args: any) => {
+    __debugPrint__impl("<dashboard>", ...args)
+}
+//
+//
 const SampleDashboard: React.FC = (props) => {
     //
-    const cEvents = useCEventsValue()
+    const { mdProps, mdPropsDispatch } = useContext(MdPropsContext)
     const [filteredCEvents, setFilteredCEvents] = useState<{
-        [tag: string]: CEventsPropsType
+        [tag: string]: CEventPropsType[]
     }>({})
     const targetTags = ["TAGtask1", "TAGtask2"]
     //
     useEffect(() => {
-        let fe: { [tag: string]: CEventsPropsType } = {}
+        let fe: { [tag: string]: CEventPropsType[] } = {}
         for (let targetTag of targetTags) {
-            fe[targetTag] = cEvents.filter((e) => e.tags?.includes(targetTag))
-            __debugPrint__(cEvents)
+            fe[targetTag] = mdProps.cEvents.filter((e) =>
+                e.tags?.includes(targetTag)
+            )
+            __debugPrint__(mdProps.cEvents)
         }
         setFilteredCEvents(fe)
-    }, [cEvents])
+    }, [mdProps.cEvents])
     //
     //
     //

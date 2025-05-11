@@ -1,7 +1,7 @@
 {
 	"files": [
 		{
-			"path": "src/simple-markdown/simple-markdown.ts",
+			"path": "src/___simple-markdown/simple-markdown.ts",
 			"bookmarks": [
 				{
 					"line": 31,
@@ -41,20 +41,20 @@
 			]
 		},
 		{
-			"path": "src/___App.tsx",
+			"path": "src/___simple-markdown/___App.tsx",
 			"bookmarks": [
 				{
-					"line": 143,
+					"line": 147,
 					"column": 38,
 					"label": ""
 				},
 				{
-					"line": 204,
+					"line": 208,
 					"column": 47,
 					"label": ""
 				},
 				{
-					"line": 255,
+					"line": 259,
 					"column": 47,
 					"label": ""
 				}

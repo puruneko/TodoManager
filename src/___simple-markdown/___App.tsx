@@ -1,3 +1,7 @@
+//@ts-nocheck
+//
+//
+
 import React, { useEffect, useRef, useState } from "react"
 
 import SimpleMarkdown from "./simple-markdown/simple-markdown"

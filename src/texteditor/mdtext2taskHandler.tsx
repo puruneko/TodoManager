@@ -17,6 +17,11 @@ import {
     MdTaskType,
 } from "../store/mdPropsStore"
 import { __debugPrint__impl } from "../debugtool/debugtool"
+import {
+    filterDateHashtag,
+    getCEventTypeByDateHashtagName,
+    splitHashtag,
+} from "./hashtag"
 
 //
 //
@@ -74,6 +79,7 @@ const removeHashtag = (linetext: string) => {
 }
 const getText = (tree): string => {
     let text = ""
+    const _tree = "type" in tree ? tree : { type: "", children: tree }
     if (tree.type == "text") {
         return tree.value
     }
@@ -127,7 +133,7 @@ const genTask = (
     mdtext,
     listitem: MdastListItem & MdastMdNode,
     headings: CEventDepType[]
-): MdTaskType | null => {
+): MdTaskType[] => {
     __debugPrint__("genTask", listitem)
     //task本文の処理
     const paragraphItem = nodeWithPosition(
@@ -140,12 +146,6 @@ const genTask = (
         start: unistpos.start,
         end: paragraphItem.position.end,
     }
-    const hashtags = getHashtag(linetext)
-    const dateHashtagValue = hashtags
-        .filter((h) => h.replace("#", "").startsWith("scheduled"))
-        .map((h) => {
-            return dateHashtagValue2dateRange(h)
-        }) //[NOTE]scheduledタグは１つしか付けられない想定の実装
 
     //descriptionの抽出
     const descriptionItems = listitem.children
@@ -174,25 +174,37 @@ const genTask = (
     //taskの作成
     if (unistpos) {
         const mdRange = unistPosition2mdRange(unistpos)
-        return {
-            id: mdRange2cEventid(mdRange),
-            title: removeHashtag(linetext),
-            range: mdRange,
-            taskRange: unistPosition2mdRange(taskRange),
-            checked: listitem.checked || false,
-            tags: hashtags,
-            start:
-                dateHashtagValue.length != 0 ? dateHashtagValue[0].start : null,
-            end: dateHashtagValue.length != 0 ? dateHashtagValue[0].end : null,
-            allDay: !(dateHashtagValue.length != 0
-                ? dateHashtagValue[0].end
-                : null),
-            deps: headings,
-            description: descriptionValue, //"dummy text.".repeat(10),
-            descriptionRange: unistPosition2mdRange(descriptionRange),
+
+        const hashtags = splitHashtag(linetext)
+        let dateHashtags = filterDateHashtag(hashtags)
+        /*
+            .filter((h) => h.replace("#", "").startsWith("scheduled"))
+            .map((h) => {
+                return dateHashtagValue2dateRange(h)
+            }) //[NOTE]scheduledタグは１つしか付けられない想定の実装
+        */
+        if (dateHashtags.length == 0) {
+            //@ts-ignore(後で型の整合性をとる)
+            dateHashtags = [{ name: "", value: { start: null, end: null } }]
         }
+        return dateHashtags.map((dateHashtag) => {
+            return {
+                id: mdRange2cEventid(mdRange),
+                title: removeHashtag(linetext),
+                range: mdRange,
+                taskRange: unistPosition2mdRange(taskRange),
+                checked: listitem.checked || false,
+                tags: hashtags,
+                start: dateHashtag.value.start,
+                end: dateHashtag.value.end,
+                allDay: !dateHashtag.value.end,
+                deps: headings,
+                description: descriptionValue,
+                descriptionRange: unistPosition2mdRange(descriptionRange),
+            }
+        })
     }
-    return null
+    return []
 }
 
 let headings: CEventDepType[] = []
@@ -202,31 +214,41 @@ export const getTasks = (mdtext: string, tree): MdTaskType[] => {
         headings = []
     }
     if (tree.children) {
-        let listitems: MdastListItem[] = []
         for (let treeChild of tree.children) {
+            //headingの場合
             if (treeChild.type == "heading") {
                 const headingNode = treeChild
                 const range = unistPosition2mdRange(headingNode.position)
-                headings = headings.slice(0, headingNode.deps)
-                headings[headingNode.deps] = {
+                const newHeading = {
                     id: mdRange2cEventid(range),
-                    title: getText(headingNode.children),
+                    title: getText(headingNode),
                     range: range,
+                    depth: headingNode.depth,
                 }
-            } else if (treeChild.type == "list") {
-                listitems = treeChild.children
+                headings = headings.slice(0, newHeading.depth - 1)
+                headings.push(newHeading)
+                __debugPrint__("newHeadings:", headings)
+            }
+            //listの場合
+            else if (treeChild.type == "list") {
+                const listitems: MdastListItem[] = treeChild.children
                 for (let listitem of listitems) {
+                    //taskの場合
                     if (listitem.checked !== null) {
-                        const task = genTask(
+                        const taskList = genTask(
                             mdtext,
                             nodeWithPosition(listitem),
                             headings
                         )
                         //taskの登録
-                        if (task) {
-                            tasks.push(task)
+                        if (taskList.length > 0) {
+                            taskList.forEach((task) => {
+                                tasks.push(task)
+                            })
                         } else {
-                            throw Error(`pos is undefined(${listitem})`)
+                            throw Error(
+                                `invalid mdAstListItem of task(${listitem})`
+                            )
                         }
                     }
                 }

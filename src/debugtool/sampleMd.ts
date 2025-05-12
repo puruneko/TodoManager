@@ -6,13 +6,15 @@ export const debugMdTextSimple = `aaa
 - [ ] task2 #TAGtask20 #TAGtask2
     - DESCRIPTION(2-1)
     - DESCRIPTION(2-2)
-- [x] task3 #TAGtask30 #scheduled:2025-5-5T15:00~2025-5-5T16:00
+## PJ1-2
+- [x] task3 #TAGtask30 #plan:2025-5-12T15:00~2025-5-12T16:00
     - DESCRIPTION(3-1)
     - DESCRIPTION(3-2)
 - [ ] task4 #TAGtask40
     - DESCRIPTION(4-1)
     - DESCRIPTION(4-2)
-- [ ] task5 #TAGtask50 #scheduled:2025-5-5T10:00~2025-5-5T11:00
+# PJ2
+- [ ] task5 #TAGtask50 #plan:2025-5-12T10:00~2025-5-12T11:00 #due:2025-5-14T10:00
     - DESCRIPTION(5-1)
     - DESCRIPTION(5-2)
 `

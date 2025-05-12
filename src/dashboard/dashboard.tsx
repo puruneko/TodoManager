@@ -28,6 +28,7 @@ import interactionPlugin from "@fullcalendar/interaction"
 //
 import { __debugPrint__impl } from "../debugtool/debugtool"
 import { CEventPropsType, MdPropsContext } from "../store/mdPropsStore"
+import { HashtagType } from "../texteditor/hashtag"
 
 //
 //
@@ -48,7 +49,7 @@ const SampleDashboard: React.FC = (props) => {
         let fe: { [tag: string]: CEventPropsType[] } = {}
         for (let targetTag of targetTags) {
             fe[targetTag] = mdProps.cEvents.filter((e) =>
-                e.tags?.includes(targetTag)
+                e.tags?.map((t) => t.name).includes(targetTag)
             )
             __debugPrint__(mdProps.cEvents)
         }

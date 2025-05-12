@@ -39,11 +39,8 @@ import interactionPlugin, {
 import "./calendar.css"
 import {
     CEventPropsType,
-    dateProps2stringType,
     genDefaultCEventProps,
-    genErrorRange,
     getCEventById,
-    getDateProps,
     MdPropsContext,
     MdRange,
     MdTaskType,
@@ -51,6 +48,7 @@ import {
 import { __debugPrint__impl } from "../debugtool/debugtool"
 import { useIcChannel } from "../store/interComponentChannelStore"
 import { nonPropagatingEvent } from "../utils/htmlEvents"
+import { dateProps2stringType, getDateProps } from "../utils/datetime"
 
 //
 //
@@ -328,6 +326,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
                 })
             }
         }
+        /*
         const handleDragover = (e) => {
             e.preventDefault()
         }
@@ -352,6 +351,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
             //
             __debugPrint__("droppedCEvent:", droppedCEvent)
         }
+        */
         //
         const d = {
             start: dateProps2stringType(
@@ -366,6 +366,11 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
             if (d.end) {
                 timeText += `- ${d.end.hour}:${d.end.minute}`
             }
+            const depsText = (getCEventInfoProps(fcEvent, "deps") || [])
+                .map((dep) => {
+                    return dep.title
+                })
+                .join(" > ")
             const tags = getCEventInfoProps(fcEvent, "tags")
             const description = getCEventInfoProps(fcEvent, "description")
             //
@@ -380,11 +385,9 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
                         handleCEventAreaClicked(id)
                         e.stopPropagation()
                     }}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragover}
                 >
                     <div className="calender-cEventcard-header">
-                        <div style={{ flexGrow: 1 }}>PJ Name</div>
+                        <div style={{ flexGrow: 1 }}>{depsText}</div>
                         <div>{timeText}</div>
                     </div>
                     <div
@@ -464,7 +467,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
                             onChange={(e) => {
                                 setInputCEvent({
                                     ...inputCEvent,
-                                    tags: e.target.value.split(","),
+                                    tags: [], //e.target.value.split(","),
                                 })
                             }}
                         />

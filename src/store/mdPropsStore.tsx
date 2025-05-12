@@ -16,6 +16,8 @@ import { dictMap } from "../utils/iterable"
 import { parseMarkdown } from "../texteditor/remarkProcessing"
 import { getTasks } from "../texteditor/mdtext2taskHandler"
 import { debugMdTextSimple } from "../debugtool/sampleMd"
+import { dateProps2stringType, getDateProps } from "../utils/datetime"
+import { HashtagType, isDateHashtag } from "../texteditor/hashtag"
 
 //
 //
@@ -58,25 +60,31 @@ export type CEventDepType = {
     id: string
     title: string
     range: MdRange
+    depth: number
 }
+export type CEventType = "plan" | "due" | "event"
 export type CEventPropsType = {
+    //calendar props
     id: string
     title: string
     start: Date
     end: Date | null
-    range: MdRange
-    deps: CEventDepType[]
-    //
     allDay: boolean
-    //
     description?: string
-    tags?: string[]
+    //calendar props(extended)
+    type: CEventType
+    deps: CEventDepType[]
     checked?: boolean
+    tags?: HashtagType[]
+    //md props
+    range: MdRange
     taskRange?: MdRange
     descriptionRange?: MdRange
+    //
+    //
 }
 //
-export type MdTaskType = Omit<CEventPropsType, "start" | "end"> & {
+export type MdTaskType = Omit<CEventPropsType, "type" | "start" | "end"> & {
     start: CEventPropsType["start"] | null
     end: CEventPropsType["start"] | null
 }
@@ -90,8 +98,11 @@ export type MdPropsType = {
 
 const initialMdtext = debugMdTextSimple // ""
 //
-export const genDefaultCEventProps = (cEvent?: Partial<CEventPropsType>) => {
+export const genDefaultCEventProps = (
+    cEvent?: Partial<CEventPropsType>
+): CEventPropsType => {
     return {
+        type: "event",
         id: "",
         title: "",
         start: new Date("Invalid Date"),
@@ -102,6 +113,13 @@ export const genDefaultCEventProps = (cEvent?: Partial<CEventPropsType>) => {
         ...cEvent,
     }
 }
+
+//
+/*
+const genCEventFromMdTask = (mdTask: MdTaskType) => {
+
+}
+*/
 
 //
 type MdPropsActionType =
@@ -214,33 +232,6 @@ export const cEventid2mdRange = (cEventid: string): MdRange => {
     }
     return res
 }
-export const getDateProps = (d: Date, typeFunc: any = Number) => {
-    try {
-        return {
-            year: typeFunc(d.getFullYear()),
-            month: typeFunc(d.getMonth() + 1),
-            day: typeFunc(d.getDate()),
-            hour: typeFunc(d.getHours()),
-            minute: typeFunc(d.getMinutes()),
-            second: typeFunc(d.getSeconds()),
-        }
-    } catch (e) {
-        return null
-    }
-}
-export const dateProps2stringType = (dateProps: any) => {
-    if (dateProps) {
-        return {
-            year: String(dateProps.year).padStart(4, "0"),
-            month: String(dateProps.month).padStart(2, "0"),
-            day: String(dateProps.day).padStart(2, "0"),
-            hour: String(dateProps.hour).padStart(2, "0"),
-            minute: String(dateProps.minute).padStart(2, "0"),
-            second: String(dateProps.second).padStart(2, "0"),
-        }
-    }
-    return null
-}
 export const dateProps2dateString = (dateProps: any) => {
     const d = dateProps2stringType(dateProps)
     __debugPrint__("dateProps2dateString", d)
@@ -258,8 +249,6 @@ export const dateHashtagValue2dateRange = (dateHashtagValue: string) => {
     // ---> ['2025-4-1T10:00:00', '2025-4-1', 'T10:00:00', '10:00:00', ':00:00', ':00',]
     // ---> ['~2025-10-11T12', '2025-10-11', 'T12', '12', undefined, undefined,]
     const hashtagValue = dateHashtagValue
-        .replace("#", "")
-        .replace("scheduled:", "")
     const dates = Array.from(hashtagValue.matchAll(regstrDateHashtag), (m) => {
         const d = {
             year: Number(m[1].split("-")[0]),
@@ -345,6 +334,10 @@ export const replaceTextByRange = (
     )
 }
 
+export const mdtask2cEvent = (mdTask: MdTaskType): CEventPropsType => {
+    return mdTask as CEventPropsType
+}
+
 /**
  * mdpropsを作成する
  * @param mdtext
@@ -353,9 +346,11 @@ export const replaceTextByRange = (
 export const genBrandnewMdProps = (mdtext: string): MdPropsType => {
     const parsed = parseMarkdown(mdtext)
     const tasks = getTasks(mdtext, parsed.mdastTree)
-    const cEvents = tasks.filter((task) => {
-        return task.start
-    }) as CEventPropsType[]
+    const cEvents = tasks
+        .filter((task) => {
+            return task.start
+        })
+        .map(mdtask2cEvent)
     return {
         mdtext,
         parsed,
@@ -440,14 +435,14 @@ export const mdPropsReducer = (
                     const tagsStr = cEvent.tags
                         ? cEvent.tags
                               .filter((tag) => {
-                                  return !tag.startsWith("scheduled:")
+                                  return !isDateHashtag(tag)
                               })
                               .map((tag) => {
-                                  return `#${tag}`
+                                  return `#${tag.name}`
                               })
                               .join(" ")
                         : ""
-                    const scheduledHashtagValue = dateRange2dateHashtagValue({
+                    const dateHashtagValue = dateRange2dateHashtagValue({
                         ...cEvent,
                     })
                     //新規タスクの追加
@@ -455,7 +450,7 @@ export const mdPropsReducer = (
                         let newLineText = "\n"
                         newLineText += `- [${cEvent.checked ? "x" : " "}] ${
                             cEvent.title
-                        } ${tagsStr} #scheduled:${scheduledHashtagValue}`
+                        } ${tagsStr} #${cEvent.type}:${dateHashtagValue}`
                         if (cEvent.description && cEvent.description != "") {
                             newLineText += "\n"
                             newLineText += `    - ${cEvent.description}`
@@ -472,9 +467,9 @@ export const mdPropsReducer = (
                         if (range) {
                             const newLineText = `- [${
                                 cEvent.checked ? "x" : " "
-                            }] ${
-                                cEvent.title
-                            } ${tagsStr} #scheduled:${scheduledHashtagValue}`
+                            }] ${cEvent.title} ${tagsStr} #${
+                                cEvent.type
+                            }:${dateHashtagValue}`
                             newMdtext = replaceTextByRange(
                                 newMdtext,
                                 newLineText,

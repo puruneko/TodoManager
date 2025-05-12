@@ -8,6 +8,7 @@ manage todo
 
 - 基本はiPadで管理
 - [ ] typeCast
+- [ ] calendar cardの追加機能（伸び縮みなど）
 
 # vite
 

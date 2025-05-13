@@ -24,12 +24,12 @@ import { Point, Position } from "unist"
 import { __debugPrint__impl } from "../debugtool/debugtool"
 import { dictMap } from "../utils/iterable"
 import { parseMarkdown } from "../texteditor/remarkProcessing"
-import { getTasks } from "../texteditor/mdtext2taskHandler"
+import { getTasks } from "../texteditor/mdText2taskHandler"
 
 //
 //
 const __debugPrint__ = (...args: any) => {
-    __debugPrint__impl("<mdtextstore>", ...args)
+    __debugPrint__impl("<mdTextstore>", ...args)
 }
 //
 //
@@ -50,9 +50,9 @@ export type MdTaskType = Omit<CEventPropsType, "start" | "end"> & {
 }
 
 export type MdPropsType = {
-    mdtext: string
+    mdText: string
     parsed: any
-    tasks: MdTaskType[]
+    mdTasks: MdTaskType[]
 }
 
 /*
@@ -101,20 +101,20 @@ type MdPropsActionType =
     | {
           type: "setText"
           payload: {
-              mdtext: string
+              mdText: string
           }
       }
     | {
           type: "updateText"
           payload: {
-              mdtext: string
+              mdText: string
               range: any
           }
       }
     | {
           type: "updateTasks"
           payload: {
-              tasks: CEventsPropsType
+              mdTasks: CEventsPropsType
           }
       }
     | {
@@ -128,14 +128,14 @@ type MdPropsActionType =
           payload: {}
       }
 
-export const mdRange2cEventid = (mdRange: MdRange): string => {
+export const toCEventIdFromMdRange = (mdRange: MdRange): string => {
     let eventid = `${mdRange.start.lineNumber}-${mdRange.start.column}-${mdRange.start.offset}`
     if (mdRange.end) {
         eventid += `,${mdRange.end.lineNumber}-${mdRange.end.column}-${mdRange.end.offset}`
     }
     return eventid
 }
-export const cEventid2mdRange = (cEventid: string): MdRange => {
+export const toMdRangeFromCEventId = (cEventid: string): MdRange => {
     const regexpMdposStr = new RegExp(
         "(\\d+)-(\\d+)-(\\d+),(\\d+)-(\\d+)-(\\d+)"
     )
@@ -195,9 +195,9 @@ export const dateProps2stringType = (dateProps: any) => {
     }
     return null
 }
-export const dateProps2dateString = (dateProps: any) => {
+export const toDateStringFromDateProps = (dateProps: any) => {
     const d = dateProps2stringType(dateProps)
-    __debugPrint__("dateProps2dateString", d)
+    __debugPrint__("toDateStringFromDateProps", d)
     if (d) {
         return `${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
     }
@@ -207,7 +207,7 @@ const regstrDateHashtag = new RegExp(
     "[~]?(\\d{4}-\\d{1,2}-\\d{1,2})(T(\\d{1,2}(:\\d{1,2}(:\\d{1,2})?)?))?",
     "g"
 )
-export const dateHashtagValue2dateRange = (dateHashtagValue: string) => {
+export const toDateRangeFromDateHashtagValue = (dateHashtagValue: string) => {
     // "2025-4-1T10:00:00~2025-10-11T12"
     // ---> ['2025-4-1T10:00:00', '2025-4-1', 'T10:00:00', '10:00:00', ':00:00', ':00',]
     // ---> ['~2025-10-11T12', '2025-10-11', 'T12', '12', undefined, undefined,]
@@ -228,7 +228,7 @@ export const dateHashtagValue2dateRange = (dateHashtagValue: string) => {
         }
     })
     __debugPrint__(
-        "dateHashtagValue2dateRange",
+        "toDateRangeFromDateHashtagValue",
         dateHashtagValue,
         hashtagValue,
         dates
@@ -241,19 +241,19 @@ export const dateHashtagValue2dateRange = (dateHashtagValue: string) => {
                 : null,
     }
 }
-export const dateRange2dateHashtagValue = (dateRange: {
+export const toDateHashtagValueFromDateRange = (dateRange: {
     start: Date
     end: Date | null
 }) => {
     let d = getDateProps(dateRange.start, String)
-    const startStr = dateProps2dateString(d) //`${d.year.padStat(4,'0')}-${d.month.padStat(2,'0')}-${d.day.padStat(2,'0')}T${d.hour.padStat(2,'0')}:${d.minute.padStat(2,'0')}`
+    const startStr = toDateStringFromDateProps(d) //`${d.year.padStat(4,'0')}-${d.month.padStat(2,'0')}-${d.day.padStat(2,'0')}T${d.hour.padStat(2,'0')}:${d.minute.padStat(2,'0')}`
     let endStr = ""
     if (
         dateRange.end &&
         dateRange.start.getTime() !== dateRange.end.getTime()
     ) {
         d = getDateProps(dateRange.end)
-        endStr = `~${dateProps2dateString(d)}` //`~${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
+        endStr = `~${toDateStringFromDateProps(d)}` //`~${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
     }
     const dateHashtagValue = `${startStr}${endStr}`
     return dateHashtagValue
@@ -301,24 +301,24 @@ export const replaceTextByRange = (
 
 /**
  * mdpropsを作成する
- * @param mdtext
+ * @param mdText
  * @returns
  */
-export const genBrandnewMdProps = (mdtext: string): MdPropsType => {
-    const parsed = parseMarkdown(mdtext)
-    const tasks = getTasks(mdtext, parsed.mdastTree)
+export const genBrandnewMdProps = (mdText: string): MdPropsType => {
+    const parsed = parseMarkdown(mdText)
+    const mdTasks = getTasks(mdText, parsed.mdastTree)
     return {
-        mdtext,
+        mdText,
         parsed,
-        tasks,
+        mdTasks,
     }
 }
 
 export const genInitialMdProps = (props = {}): MdPropsType => {
     return {
-        mdtext: "",
+        mdText: "",
         parsed: null,
-        tasks: [],
+        mdTasks: [],
         ...props,
     }
 }
@@ -363,11 +363,11 @@ export const mdPropsReducer = (
             )
             break
         case "setText":
-            const mdtext = action.payload.mdtext
+            const mdText = action.payload.mdText
             const res = Object.assign(
                 {
                     ...state,
-                    ...genBrandnewMdProps(mdtext),
+                    ...genBrandnewMdProps(mdText),
                 },
                 {}
             )
@@ -376,7 +376,7 @@ export const mdPropsReducer = (
             const [cEvents, cEventsDispatch] = useCEvents()
             const cEventsFunc = useCEventsFunction(cEventsDispatch)
             //@ts-ignore
-            cEventsFunc.set(res.tasks)
+            cEventsFunc.set(res.mdTasks)
             newState = res
             break
         case "updateText": //TODO
@@ -389,8 +389,8 @@ export const mdPropsReducer = (
             break
         case "updateTasks":
             newState = (() => {
-                let newMdtext = state.mdtext
-                for (let task of action.payload.tasks) {
+                let newMdtext = state.mdText
+                for (let task of action.payload.mdTasks) {
                     const tagsStr = task.tags
                         ? task.tags
                               .filter((tag) => {
@@ -401,7 +401,7 @@ export const mdPropsReducer = (
                               })
                               .join(" ")
                         : ""
-                    const scheduledHashtagValue = dateRange2dateHashtagValue({
+                    const scheduledHashtagValue = toDateHashtagValueFromDateRange({
                         ...task,
                     })
                     //新規タスクの追加
@@ -454,9 +454,9 @@ export const mdPropsReducer = (
             break
         case "removeTasks":
             let ranges: MdRange[] = action.payload.ids.map((id) => {
-                return cEventid2mdRange(id)
+                return toMdRangeFromCEventId(id)
             })
-            let newMdtext = state.mdtext
+            let newMdtext = state.mdText
             for (let pos of ranges) {
                 newMdtext = replaceTextByRange(newMdtext, "", pos)
             }
@@ -490,21 +490,21 @@ export const useMdPropsFunction = (dispatch: Dispatch<MdPropsActionType>) => {
             [dispatch]
         ),
         setText: useCallback(
-            (mdtext: string) => {
-                __debugPrint__("setText in useMdPropsFunction", mdtext)
-                dispatch({ type: "setText", payload: { mdtext } })
+            (mdText: string) => {
+                __debugPrint__("setText in useMdPropsFunction", mdText)
+                dispatch({ type: "setText", payload: { mdText } })
             },
             [dispatch]
         ),
         updateText: useCallback(
-            (mdtext: string, range: any) => {
-                dispatch({ type: "updateText", payload: { mdtext, range } })
+            (mdText: string, range: any) => {
+                dispatch({ type: "updateText", payload: { mdText, range } })
             },
             [dispatch]
         ),
         updateTasks: useCallback(
-            (tasks: CEventsPropsType) => {
-                dispatch({ type: "updateTasks", payload: { tasks } })
+            (mdTasks: CEventsPropsType) => {
+                dispatch({ type: "updateTasks", payload: { mdTasks } })
             },
             [dispatch]
         ),

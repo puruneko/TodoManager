@@ -1,31 +1,66 @@
-import { CEventType, dateProps2dateString } from "../store/mdPropsStore"
-import { DatetimeRangeType, getDateProps } from "../utils/datetime"
+import {
+    T_CEventType,
+    T_MdRange,
+    toDateStringFromDateProps,
+} from "../store/mdPropsStore"
+import { T_DatetimeRange, getDateProps } from "../utils/datetime"
 
-export type HashtagType = {
+export type T_Hashtag = {
     name: string
     value?: string
+    range?: T_MdRange
 }
-export type DateHashtagType = Omit<HashtagType, "value"> & {
-    value: DatetimeRangeType
+export type T_DateHashtag = Omit<T_Hashtag, "value"> & {
+    value: T_DatetimeRange
 }
-export const dateHashtagList: { [name: string]: CEventType } = {
+export const dateHashtagList: { [name: string]: T_CEventType } = {
     due: "due",
     plan: "plan",
 }
 
 export const regexpHashtag = new RegExp(
-    "(?:[ 　]|^)[#]([^\\s:]+)(?:[:](\\S+))?(?=[ 　]|$)",
+    "([ 　]|^)[#]([^\\s:]+)(?:[:](\\S+))?(?=[ 　]|$)",
     "g"
 )
+
+export const getHashtagByName = (
+    hashtags: T_Hashtag[],
+    hashtagName: string
+): T_Hashtag | null => {
+    const resHashtag = hashtags.filter((hashtag) => {
+        return hashtag.name == hashtagName
+    })
+    if (resHashtag.length <= 1) {
+        if (resHashtag.length == 1) {
+            return resHashtag[0]
+        }
+        return null
+    }
+    throw Error(`duplicate hashtag name: ${hashtagName}`)
+}
 
 /**
  *
  * @param text
  * @returns
  */
-export const splitHashtag = (text: string): HashtagType[] => {
+export const splitHashtag = (text: string): T_Hashtag[] => {
     return Array.from(text.matchAll(regexpHashtag), (hashtag) => {
-        return { name: hashtag[1], value: hashtag[2] }
+        const index = hashtag.index
+        const [whole, sep, name, value] = hashtag
+        const range: T_MdRange = {
+            start: {
+                lineNumber: -1,
+                column: -1,
+                offset: index + sep.length,
+            },
+            end: {
+                lineNumber: -1,
+                column: -1,
+                offset: index + sep.length + whole.length,
+            },
+        }
+        return { name: name, value: value, range: range }
     })
 }
 
@@ -39,9 +74,9 @@ const regstrDateHashtag = new RegExp(
  * @param dateHashtagValue
  * @returns
  */
-export const dateHashtagValue2dateRange = (
+export const toDateRangeFromDateHashtagValue = (
     dateHashtagValue: string
-): DatetimeRangeType => {
+): T_DatetimeRange => {
     // "2025-4-1T10:00:00~2025-10-11T12"
     // ---> ['2025-4-1T10:00:00', '2025-4-1', 'T10:00:00', '10:00:00', ':00:00', ':00',]
     // ---> ['~2025-10-11T12', '2025-10-11', 'T12', '12', undefined, undefined,]
@@ -77,25 +112,47 @@ export const dateHashtagValue2dateRange = (
  * @param dateRange
  * @returns
  */
-export const dateRange2dateHashtagValue = (dateRange: {
+export const toDateHashtagValueFromDateRange = (dateRange: {
     start: Date
     end: Date | null
 }) => {
     let d = getDateProps(dateRange.start, String)
-    const startStr = dateProps2dateString(d) //`${d.year.padStat(4,'0')}-${d.month.padStat(2,'0')}-${d.day.padStat(2,'0')}T${d.hour.padStat(2,'0')}:${d.minute.padStat(2,'0')}`
+    const startStr = toDateStringFromDateProps(d) //`${d.year.padStat(4,'0')}-${d.month.padStat(2,'0')}-${d.day.padStat(2,'0')}T${d.hour.padStat(2,'0')}:${d.minute.padStat(2,'0')}`
     let endStr = ""
     if (
         dateRange.end &&
         dateRange.start.getTime() !== dateRange.end.getTime()
     ) {
         d = getDateProps(dateRange.end)
-        endStr = `~${dateProps2dateString(d)}` //`~${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
+        endStr = `~${toDateStringFromDateProps(d)}` //`~${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
     }
     const dateHashtagValue = `${startStr}${endStr}`
     return dateHashtagValue
 }
 
-export const isDateHashtag = (hashtag: string | HashtagType) => {
+export const updateHashtag = (
+    hashtags: T_Hashtag[],
+    newHashtag: T_Hashtag | null
+): T_Hashtag[] => {
+    if (newHashtag) {
+        let updated = false
+        let newHashtags = hashtags.map((tag) => {
+            if (tag.name == newHashtag.name) {
+                updated = true
+                return newHashtag
+            } else {
+                return tag
+            }
+        })
+        if (!updated) {
+            newHashtags.push(newHashtag)
+        }
+        return newHashtags
+    }
+    return hashtags
+}
+
+export const isDateHashtag = (hashtag: string | T_Hashtag) => {
     //@ts-ignore
     return Object.keys(dateHashtagList).includes(hashtag.name || hashtag)
 }
@@ -104,9 +161,7 @@ export const isDateHashtag = (hashtag: string | HashtagType) => {
  * @param hashtags
  * @returns
  */
-export const filterDateHashtag = (
-    hashtags: HashtagType[]
-): DateHashtagType[] => {
+export const filterDateHashtag = (hashtags: T_Hashtag[]): T_DateHashtag[] => {
     return hashtags
         .filter((hashtag) => {
             return isDateHashtag(hashtag.name)
@@ -119,7 +174,7 @@ export const filterDateHashtag = (
             }
             return {
                 name: dateHashtagRaw.name,
-                value: dateHashtagValue2dateRange(dateHashtagRaw.value),
+                value: toDateRangeFromDateHashtagValue(dateHashtagRaw.value),
             }
         })
 }
@@ -127,9 +182,9 @@ export const filterDateHashtag = (
 /**
  *
  */
-export const getCEventTypeByDateHashtagName = (
+export const getT_CEventByDateHashtagName = (
     dateHashtagName: string
-): CEventType => {
+): T_CEventType => {
     if (Object.keys(dateHashtagList).includes(dateHashtagName)) {
         return dateHashtagList[dateHashtagName]
     }

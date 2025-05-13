@@ -1,6 +1,11 @@
-export const debugMdTextSimple = `aaa
+export const debugMdTextSimple = `
+sample1 #tag_1
+sample2 #tag_2
+`
+export const debugMdTextSimple2 = `｜aaa《AAA》
+#HASHtag
 # PJ1
-- [ ] task1 #TAGtask10 #TAGtask10_2
+- [ ] task1_*BOLD*_~DELETE~_ #TAGtask10 #TAGtask10_2
     - DESCRIPTION(1-1)*bold*EOL
     - DESCRIPTION(1-2)
 - [ ] task2 #TAGtask20 #TAGtask2

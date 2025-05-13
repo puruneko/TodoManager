@@ -5,4 +5,13 @@ import react from "@vitejs/plugin-react"
 export default defineConfig({
     plugins: [react()],
     assetsInclude: ["./*.md"],
+    test: {
+        globals: false,
+        environment: "jsdom",
+        setupFiles: ["./vitest-setup.ts"],
+        coverage: {
+            include: ["src"],
+            exclude: ["src/main.tsx"],
+        },
+    },
 })

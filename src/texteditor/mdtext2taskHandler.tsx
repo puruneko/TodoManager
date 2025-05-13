@@ -10,28 +10,22 @@ import {
 import { Node as UnistNode, Position as UnistPosition } from "unist"
 
 import {
-    CEventDepType,
-    dateHashtagValue2dateRange,
-    MdRange,
-    mdRange2cEventid,
-    MdTaskType,
+    T_CEventDep,
+    T_MdRange,
+    T_MdTask,
+    toTaskIdFromMdRange,
 } from "../store/mdPropsStore"
 import { __debugPrint__impl } from "../debugtool/debugtool"
-import {
-    filterDateHashtag,
-    getCEventTypeByDateHashtagName,
-    splitHashtag,
-} from "./hashtag"
+import { filterDateHashtag, T_Hashtag, splitHashtag } from "./hashtag"
 
 //
 //
 const __debugPrint__ = (...args: any) => {
-    __debugPrint__impl("<mdtextstore>", ...args)
+    __debugPrint__impl("<mdTextstore>", ...args)
 }
 //
 //
-
-type UnistPositionWithOffset = {
+export type UnistPositionWithOffset = {
     start: {
         line: number
         column: number
@@ -48,7 +42,7 @@ interface MdastMdNode extends UnistNode {
 }
 
 //
-const unistPosition2mdRange = (position: UnistPosition): MdRange => {
+const unistPosition2mdRange = (position: UnistPosition): T_MdRange => {
     if (
         position.start.offset === undefined ||
         position.end.offset === undefined
@@ -77,7 +71,7 @@ const getHashtag = (linetext: string) => {
 const removeHashtag = (linetext: string) => {
     return linetext.replace(regexpHashtag, "").trim()
 }
-const getText = (tree): string => {
+export const getNodeChildrenText = (tree): string => {
     let text = ""
     const _tree = "type" in tree ? tree : { type: "", children: tree }
     if (tree.type == "text") {
@@ -87,7 +81,7 @@ const getText = (tree): string => {
         if (child.type == "text") {
             text += child.value
         } else {
-            text += getText(child)
+            text += getNodeChildrenText(child)
         }
         if (child.type == "paragraph") {
             text += "\n"
@@ -96,17 +90,19 @@ const getText = (tree): string => {
     return text
 }
 const getMdtextByPosition = (
-    mdtext: string,
+    mdText: string,
     position: UnistPositionWithOffset
 ) => {
-    return mdtext.substring(position.start.offset, position.end.offset)
+    return mdText.substring(position.start.offset, position.end.offset)
 }
 
-function nodeWithPosition<T extends UnistNode>(node: T): T & MdastMdNode {
+export function nodeWithPosition<T extends UnistNode>(
+    node: T
+): T & MdastMdNode {
     if (
-        !node.position ||
-        !node.position.start.offset ||
-        !node.position.end.offset
+        node.position === undefined ||
+        node.position?.start.offset === undefined ||
+        node.position?.end.offset === undefined
     ) {
         throw Error(`this node must have property 'position'.(${node})`)
     }
@@ -129,11 +125,31 @@ function nodeWithPosition<T extends UnistNode>(node: T): T & MdastMdNode {
     return nodewithrange
 }
 
+export const genLinetext = (mdObjType: string, task: T_MdTask): string => {
+    let linetext = ""
+    switch (mdObjType) {
+        case "task":
+            const tagText = task.tags
+                .map((tag) => {
+                    return `#${tag.name}${tag.value ? ":" + tag.value : ""}`
+                })
+                .join(" ")
+            const descriptionText =
+                task.description.value == ""
+                    ? ""
+                    : "\n    " + task.description.value //.replace("\n", "\n    ")
+            linetext = `- [${task.checked ? "x" : " "}] ${
+                task.task.value
+            } ${tagText}${descriptionText}`
+    }
+    return linetext
+}
+
 const genTask = (
-    mdtext,
+    mdText,
     listitem: MdastListItem & MdastMdNode,
-    headings: CEventDepType[]
-): MdTaskType[] => {
+    headings: T_CEventDep[]
+): T_MdTask | null => {
     __debugPrint__("genTask", listitem)
     //task本文の処理
     const paragraphItem = nodeWithPosition(
@@ -155,7 +171,7 @@ const genTask = (
         items: listitem.children.slice(1),
         value: "",
     }
-    description.value = getText({
+    description.value = getNodeChildrenText({
         type: "listitem",
         children: description.items,
     }).trim()
@@ -168,48 +184,75 @@ const genTask = (
               }
             : { start: taskRange.start, end: taskRange.start }
     const descriptionValue = descriptionRange
-        ? getMdtextByPosition(mdtext, descriptionRange)
+        ? getMdtextByPosition(mdText, descriptionRange)
         : ""
 
     //taskの作成
     if (unistpos) {
         const mdRange = unistPosition2mdRange(unistpos)
 
-        const hashtags = splitHashtag(linetext)
+        const hashtags = splitHashtag(linetext).map((hashtag) => {
+            return {
+                ...hashtag,
+                range: hashtag.range
+                    ? {
+                          start: {
+                              lineNumber: unistpos.start.line,
+                              column:
+                                  unistpos.start.column +
+                                  hashtag.range.start.offset,
+                              offset:
+                                  unistpos.start.offset +
+                                  hashtag.range.start.offset,
+                          },
+                          end: {
+                              lineNumber: unistpos.start.line,
+                              column:
+                                  unistpos.start.column +
+                                  hashtag.range.end.offset,
+                              offset:
+                                  unistpos.start.offset +
+                                  hashtag.range.end.offset,
+                          },
+                      }
+                    : undefined,
+            } as T_Hashtag
+        })
         let dateHashtags = filterDateHashtag(hashtags)
         /*
             .filter((h) => h.replace("#", "").startsWith("scheduled"))
             .map((h) => {
-                return dateHashtagValue2dateRange(h)
+                return toDateRangeFromDateHashtagValue(h)
             }) //[NOTE]scheduledタグは１つしか付けられない想定の実装
         */
         if (dateHashtags.length == 0) {
             //@ts-ignore(後で型の整合性をとる)
             dateHashtags = [{ name: "", value: { start: null, end: null } }]
         }
-        return dateHashtags.map((dateHashtag) => {
-            return {
-                id: mdRange2cEventid(mdRange),
-                title: removeHashtag(linetext),
-                range: mdRange,
-                taskRange: unistPosition2mdRange(taskRange),
-                checked: listitem.checked || false,
-                tags: hashtags,
-                start: dateHashtag.value.start,
-                end: dateHashtag.value.end,
-                allDay: !dateHashtag.value.end,
-                deps: headings,
-                description: descriptionValue,
-                descriptionRange: unistPosition2mdRange(descriptionRange),
-            }
-        })
+        return {
+            id: toTaskIdFromMdRange(mdRange),
+            value: linetext,
+            deps: headings,
+            tags: hashtags,
+            range: mdRange,
+            //
+            task: {
+                value: removeHashtag(linetext),
+                range: unistPosition2mdRange(taskRange),
+            },
+            description: {
+                value: descriptionValue,
+                range: unistPosition2mdRange(descriptionRange),
+            },
+            checked: listitem.checked || false,
+        } as T_MdTask
     }
-    return []
+    return null
 }
 
-let headings: CEventDepType[] = []
-export const getTasks = (mdtext: string, tree): MdTaskType[] => {
-    let tasks: MdTaskType[] = []
+let headings: T_CEventDep[] = []
+export const getTasks = (mdText: string, tree): T_MdTask[] => {
+    let mdTasks: T_MdTask[] = []
     if (tree.type == "root") {
         headings = []
     }
@@ -220,11 +263,11 @@ export const getTasks = (mdtext: string, tree): MdTaskType[] => {
                 const headingNode = treeChild
                 const range = unistPosition2mdRange(headingNode.position)
                 const newHeading = {
-                    id: mdRange2cEventid(range),
-                    title: getText(headingNode),
+                    id: toTaskIdFromMdRange(range),
+                    title: getNodeChildrenText(headingNode),
                     range: range,
                     depth: headingNode.depth,
-                }
+                } as T_CEventDep
                 headings = headings.slice(0, newHeading.depth - 1)
                 headings.push(newHeading)
                 __debugPrint__("newHeadings:", headings)
@@ -235,16 +278,14 @@ export const getTasks = (mdtext: string, tree): MdTaskType[] => {
                 for (let listitem of listitems) {
                     //taskの場合
                     if (listitem.checked !== null) {
-                        const taskList = genTask(
-                            mdtext,
+                        const task = genTask(
+                            mdText,
                             nodeWithPosition(listitem),
                             headings
                         )
                         //taskの登録
-                        if (taskList.length > 0) {
-                            taskList.forEach((task) => {
-                                tasks.push(task)
-                            })
+                        if (task) {
+                            mdTasks.push(task)
                         } else {
                             throw Error(
                                 `invalid mdAstListItem of task(${listitem})`
@@ -253,10 +294,10 @@ export const getTasks = (mdtext: string, tree): MdTaskType[] => {
                     }
                 }
             }
-            getTasks(mdtext, treeChild).forEach((task) => {
-                tasks.push(task)
+            getTasks(mdText, treeChild).forEach((task) => {
+                mdTasks.push(task)
             })
         }
     }
-    return tasks
+    return mdTasks
 }

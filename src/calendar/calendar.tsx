@@ -16,6 +16,7 @@ import React, {
 // FullCalendarコンポーネント。
 import FullCalendar from "@fullcalendar/react"
 import type {
+    DateSelectArg,
     EventApi,
     EventContentArg,
     EventDropArg,
@@ -38,17 +39,25 @@ import interactionPlugin, {
 //
 import "./calendar.css"
 import {
-    CEventPropsType,
-    genDefaultCEventProps,
+    T_CEvent,
+    T_CEventType,
+    genDefaultCEvent,
     getCEventById,
+    getMdTaskByOffset,
     MdPropsContext,
-    MdRange,
-    MdTaskType,
+    T_MdRange,
+    T_MdTask,
+    toDateHashtagNameFromCEventId,
 } from "../store/mdPropsStore"
 import { __debugPrint__impl } from "../debugtool/debugtool"
 import { useIcChannel } from "../store/interComponentChannelStore"
 import { nonPropagatingEvent } from "../utils/htmlEvents"
-import { dateProps2stringType, getDateProps } from "../utils/datetime"
+import { dateT_Props2string, getDateProps } from "../utils/datetime"
+import {
+    getHashtagByName,
+    toDateHashtagValueFromDateRange,
+    updateHashtag,
+} from "../texteditor/hashtag"
 
 //
 //
@@ -87,27 +96,27 @@ const getCEventInfoProps = (cEventInfoObj: any, propname: string) => {
     return cEventInfoObj.extendedProps[propname]
 }
 
-type SampleCalendarPropsType = {}
-const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
+type T_SampleCalendarProps = {}
+const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
     //
     const refCalender = useRef<any>()
     //
     const icChannel = useIcChannel("calender")
     //
     const { mdProps, mdPropsDispatch } = useContext(MdPropsContext)
-    const [inputCEvent, setInputCEvent] = useState<CEventPropsType | null>(null)
+    const [inputCEvent, setInputCEvent] = useState<T_CEvent | null>(null)
     const [displayInput, setDisplayInput] = useState(false)
     //
     const windowKeyDownRef = useRef<string | null>(null)
     //
     //
-    const updateEvents = (newCEvents: CEventPropsType[]) => {
+    const updateEvents = (newCEvents: T_CEvent[]) => {
         mdPropsDispatch({
             type: "updateCEvents",
             payload: { cEvents: newCEvents },
         })
     }
-    const createCEventFromFcevent = (fcEvent: EventApi) => {
+    const createCEventFromFcEvent = (fcEvent: EventApi) => {
         const id = getCEventInfoProps(fcEvent, "id")
         const cEvent = getCEventById(mdProps.cEvents, id)
         if (cEvent) {
@@ -136,7 +145,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
         //init event
         //
         //@ts-ignore(いずれ型の整合性をとる)
-        //cEventsFunc.set(mdProps.tasks)
+        //cEventsFunc.set(mdProps.mdTasks)
     }, [])
     //
     //key event
@@ -163,7 +172,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
             __debugPrint__("ERROR:", id, mdProps.cEvents)
         }
     }
-    const handleCalenderSelect = (selection: any) => {
+    const handleCalenderSelect = (selection: DateSelectArg) => {
         __debugPrint__(
             "select",
             mdProps.cEvents,
@@ -171,41 +180,43 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
             "key:",
             windowKeyDownRef.current
         )
+        //shift+selectionで新規カレンダーイベント
         if (windowKeyDownRef.current?.toLowerCase().startsWith("shift")) {
             const textareaPosition = icChannel.send(
                 "texteditor",
                 "getPosition",
                 {}
-            ) as MdRange
+            ) as T_MdRange
             if (textareaPosition && textareaPosition.start.offset) {
                 //[TODO]eventではなくtaskにする
-                let newTask: MdTaskType | null = null
-                for (let task of mdProps.tasks) {
-                    if (
-                        (task.range?.start.offset || 99999999) <=
-                            textareaPosition.start.offset &&
-                        textareaPosition.start.offset <=
-                            (task.range?.end.offset || -1)
-                    ) {
-                        newTask = task
-                        break
+                let newMdTask = getMdTaskByOffset(
+                    mdProps.mdTasks,
+                    textareaPosition.start.offset
+                )
+                if (newMdTask) {
+                    const newDateHashtag = {
+                        name: "plan",
+                        value: toDateHashtagValueFromDateRange({
+                            ...selection,
+                        }),
                     }
-                }
-                if (newTask) {
-                    newTask.start = selection.start
-                    newTask.end = selection.end
-                    onSubmitCEvent({
-                        ...newTask,
-                        start: selection.start,
-                        end: selection.end,
-                    } as CEventPropsType)
+                    newMdTask.tags = updateHashtag(
+                        newMdTask.tags,
+                        newDateHashtag
+                    )
+                    mdPropsDispatch({
+                        type: "updateTask",
+                        payload: {
+                            mdTask: newMdTask,
+                        },
+                    })
                 }
             }
             __debugPrint__("")
         } else {
             setInputCEvent(() => {
                 return Object.assign(
-                    genDefaultCEventProps({
+                    genDefaultCEvent({
                         start: selection.start,
                         end: selection.end,
                     }),
@@ -215,13 +226,12 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
             setDisplayInput(true)
         }
     }
-    const onSubmitCEvent = (__inputCEvent?: CEventPropsType) => {
+    const onSubmitCEvent = () => {
         //refCalender.current.getApi().addCEvent(inputCEvent)
         __debugPrint__("onSubmitCEvent", mdProps.cEvents)
         //
-        const newCEvent = __inputCEvent ? __inputCEvent : inputCEvent
-        if (newCEvent) {
-            updateEvents([newCEvent])
+        if (inputCEvent) {
+            updateEvents([inputCEvent])
         }
         //
         setInputCEvent(() => {
@@ -232,17 +242,6 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
     const onDeleteCEvent = () => {
         //refCalender.current.getApi().addCEvent(inputCEvent)
         __debugPrint__("onDeleteCEvent", mdProps.cEvents)
-        /*
-        setCEvents((es) => {
-            __debugPrint__(
-                "onDeleteCEvent setCEvents",
-                es,
-                inputCEvent,
-                es.filter((x) => x.id !== inputCEvent.id)
-            )
-            return es.filter((x) => x.id !== inputCEvent.id)
-        })
-            */
         if (inputCEvent) {
             mdPropsDispatch({
                 type: "removeCEvents",
@@ -258,6 +257,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
     const moveCalenderEvent = (
         info: EventDropArg | EventDragStopArg | EventResizeDoneArg
     ) => {
+        //allDay処理
         if ("delta" in info && "oldEvent" in info) {
             const delta = info.delta as {
                 days: number
@@ -276,7 +276,7 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
             }
         }
         const fcEvent = info.event
-        const newCEvent = createCEventFromFcevent(fcEvent)
+        const newCEvent = createCEventFromFcEvent(fcEvent)
         __debugPrint__("handleCalenderEventEdit", newCEvent, mdProps.cEvents)
         if (newCEvent) {
             updateEvents([newCEvent])
@@ -326,38 +326,12 @@ const SampleCalendar: React.FC<SampleCalendarPropsType> = (props) => {
                 })
             }
         }
-        /*
-        const handleDragover = (e) => {
-            e.preventDefault()
-        }
-        const handleDrop = (e) => {
-            e.preventDefault()
-            const selectionStart = e.dataTransfer.getData(
-                "application/texteditor"
-            )
-            __debugPrint__("handleDrop(1):", e)
-            __debugPrint__(selectionStart)
-            //selectionStartが属するcEventを探す
-            let droppedCEvent: CEventPropsType | null = null
-            for (let cEvent of mdProps.cEvents) {
-                if (
-                    (cEvent.range.start.offset || 99999999) <= selectionStart &&
-                    selectionStart <= (cEvent.range.end.offset || -1)
-                ) {
-                    droppedCEvent = cEvent
-                    break
-                }
-            }
-            //
-            __debugPrint__("droppedCEvent:", droppedCEvent)
-        }
-        */
         //
         const d = {
-            start: dateProps2stringType(
+            start: dateT_Props2string(
                 getDateProps(getCEventInfoProps(fcEvent, "start"), String)
             ),
-            end: dateProps2stringType(
+            end: dateT_Props2string(
                 getDateProps(getCEventInfoProps(fcEvent, "end"), String)
             ),
         }

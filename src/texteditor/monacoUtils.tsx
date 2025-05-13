@@ -1,7 +1,7 @@
 //https://microsoft.github.io/monaco-editor/docs.html
 import monaco from "monaco-editor"
 import { Position } from "unist"
-import { MdPosition, MdRange } from "../store/mdPropsStore"
+import { T_MdPosition, T_MdRange } from "../store/mdPropsStore"
 
 //
 export const getMonacoSelection = (
@@ -51,7 +51,7 @@ export const getMonacoScrollTopPxByLineNumber = (
 }
 
 export const mdPosition2monacoPosition = (
-    mdposition: MdPosition
+    mdposition: T_MdPosition
 ): monaco.IPosition => {
     return {
         lineNumber: mdposition.lineNumber,
@@ -59,7 +59,7 @@ export const mdPosition2monacoPosition = (
     }
 }
 
-export const mdRange2monacoRange = (mdrange: MdRange): monaco.IRange => {
+export const mdRange2monacoRange = (mdrange: T_MdRange): monaco.IRange => {
     return {
         startLineNumber: mdrange.start.lineNumber,
         startColumn: mdrange.start.column,

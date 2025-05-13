@@ -10,74 +10,23 @@ import {
     useRef,
     useState,
 } from "react"
-import { CEventsPropsType } from "./cEventsStore"
 import { __debugPrint__ } from "../debugtool/debugtool"
 
-/*
-[ex]
-
-//in reciever component
-const icChannel = useICChannel(componentName="ComponentName")
-icChannel.on('insertText', (payload) => {
-    textareaElement.innnerHTML = payload.text
-})
-
-//in sender component
-const icChannel = useICChannel(componentName="ComponentName")
-icChannel.send({
-    to:'RecieverComponentName',
-    eventName:'insertText',
-    payload:{text: "INSERT TEXT"}
-})
-
-const useICChannel = (componentName) => {
-    const iccStore = useICCStoreContext()
-    const dispatch = useICCStoreDispatch()
-    const on = (eventName, callback) => {
-        dispatch({
-            type: 'on',
-            payload: {
-                componentName: componentName,
-                eventName: eventName,
-                callback: callback,
-            }
-        })
-    }
-    const send = (toComponentName, eventName, payload) => {
-        dispatch({
-            type: 'send',
-            payload: {
-                componentName: toComponentName,
-                eventName: eventName,
-                payload: payload,
-                from: componentName,
-            }
-        })
-    }
-    return {
-        store: iccStore,
-        dispatch: dispatch,
-        on: on,
-        send: send,
-    }
-}
-*/
-
-type ICCCallbacksType = {
+type T_ICCCallbacks = {
     [componentName: string]: {
         [evnetName: string]: (payload: any) => any
     }
 }
-type ICCStoreType = {
+type T_ICCStore = {
     redraw: boolean
-    callback: ICCCallbacksType
+    callback: T_ICCCallbacks
 }
 
-const ICCCallbackStore: ICCCallbacksType = {}
+const ICCCallbackStore: T_ICCCallbacks = {}
 
-const ICCStoreInitial: ICCStoreType = { redraw: true, callback: {} }
+const ICCStoreInitial: T_ICCStore = { redraw: true, callback: {} }
 
-type ICCStoreActionType =
+type T_ICCStoreAction =
     | {
           type: "on"
           payload: {
@@ -105,9 +54,9 @@ type ICCStoreActionType =
       }
 
 export const iccStoreReducer = (
-    state: ICCStoreType,
-    action: ICCStoreActionType
-): ICCStoreType => {
+    state: T_ICCStore,
+    action: T_ICCStoreAction
+): T_ICCStore => {
     switch (action.type) {
         case "on":
             return {
@@ -152,7 +101,7 @@ export const iccStoreReducer = (
             }
     }
 }
-export const useIccStoreFunction = (dispatch: Dispatch<ICCStoreActionType>) => {
+export const useIccStoreFunction = (dispatch: Dispatch<T_ICCStoreAction>) => {
     const funcs = {
         on: useCallback(
             (...payload: any) => {
@@ -179,7 +128,7 @@ export const useIccStoreFunction = (dispatch: Dispatch<ICCStoreActionType>) => {
 /**
  * cEventsの本体
  */
-const IccStoreContext = createContext<ICCStoreType>(ICCStoreInitial)
+const IccStoreContext = createContext<T_ICCStore>(ICCStoreInitial)
 
 /**
  * cEventsにアクセスするためのHook
@@ -190,7 +139,7 @@ const useIccStoreContext = () => useContext(IccStoreContext)
 /**
  * cEventsのdispatchの本体
  */
-const IccStoreDispatchContext = createContext<Dispatch<ICCStoreActionType>>(
+const IccStoreDispatchContext = createContext<Dispatch<T_ICCStoreAction>>(
     () => undefined
 )
 

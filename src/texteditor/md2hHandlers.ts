@@ -142,7 +142,7 @@ function listItemLoose(node) {
 
 ////////////////////////////////
 
-const md2hHandler_message: MdastToHastHandlerType = (state, node, parent) => {
+const md2hHandler_message: T_MdastToHastHandler = (state, node, parent) => {
     return {
         type: "element",
         tagName: "div",
@@ -153,14 +153,14 @@ const md2hHandler_message: MdastToHastHandlerType = (state, node, parent) => {
     }
 }
 
-type MdastToHastHandlerType = (
+type T_MdastToHastHandler = (
     state: State,
     node: MdastNodes,
     parent: MdastParents
 ) => HastElement
 
 export const customMdastToHastHandlers: {
-    [key: string]: MdastToHastHandlerType
+    [key: string]: T_MdastToHastHandler
 } = {
     message: md2hHandler_message,
     listItem: listItemHandler,

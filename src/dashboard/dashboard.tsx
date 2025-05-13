@@ -12,23 +12,10 @@ import React, {
     useContext,
 } from "react"
 
-// FullCalendarコンポーネント。
-import FullCalendar from "@fullcalendar/react"
-import type { EventContentArg } from "@fullcalendar/core"
-
-// FullCalendarで週表示を可能にするモジュール。
-import timeGridPlugin from "@fullcalendar/timegrid"
-
-// FullCalendarで月表示を可能にするモジュール。
-import dayGridPlugin from "@fullcalendar/daygrid"
-
-// FullCalendarで日付や時間が選択できるようになるモジュール。
-import interactionPlugin from "@fullcalendar/interaction"
-
 //
 import { __debugPrint__impl } from "../debugtool/debugtool"
-import { CEventPropsType, MdPropsContext } from "../store/mdPropsStore"
-import { HashtagType } from "../texteditor/hashtag"
+import { T_CEvent, MdPropsContext } from "../store/mdPropsStore"
+import { T_Hashtag } from "../texteditor/hashtag"
 
 //
 //
@@ -41,12 +28,12 @@ const SampleDashboard: React.FC = (props) => {
     //
     const { mdProps, mdPropsDispatch } = useContext(MdPropsContext)
     const [filteredCEvents, setFilteredCEvents] = useState<{
-        [tag: string]: CEventPropsType[]
+        [tag: string]: T_CEvent[]
     }>({})
     const targetTags = ["TAGtask1", "TAGtask2"]
     //
     useEffect(() => {
-        let fe: { [tag: string]: CEventPropsType[] } = {}
+        let fe: { [tag: string]: T_CEvent[] } = {}
         for (let targetTag of targetTags) {
             fe[targetTag] = mdProps.cEvents.filter((e) =>
                 e.tags?.map((t) => t.name).includes(targetTag)

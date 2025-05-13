@@ -1,8 +1,8 @@
-export type DatetimeRangeType = {
+export type T_DatetimeRange = {
     start: Date
     end: Date | null
 }
-export type DatetimePropsType<T = number> = {
+export type T_DatetimeProps<T = number> = {
     year: T
     month: T
     day: T
@@ -13,7 +13,7 @@ export type DatetimePropsType<T = number> = {
 export const getDateProps = <T = number>(
     d: Date,
     typeFunc?: (d: any) => T
-): DatetimePropsType<T> | null => {
+): T_DatetimeProps<T> | null => {
     const _typeFunc = typeFunc ? typeFunc : (d: any) => Number(d) as T
     try {
         return {
@@ -28,7 +28,7 @@ export const getDateProps = <T = number>(
         return null
     }
 }
-export const dateProps2stringType = (dateProps: any) => {
+export const dateT_Props2string = (dateProps: any) => {
     if (dateProps) {
         return {
             year: String(dateProps.year).padStart(4, "0"),

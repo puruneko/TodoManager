@@ -153,6 +153,17 @@ const md2hHandler_message: T_MdastToHastHandler = (state, node, parent) => {
     }
 }
 
+const md2hHandler_hashtag: T_MdastToHastHandler = (state, node, parent) => {
+    return {
+        type: "element",
+        tagName: "span",
+        properties: {
+            className: ["myhashtag"],
+        },
+        children: state.all(node),
+    }
+}
+
 type T_MdastToHastHandler = (
     state: State,
     node: MdastNodes,
@@ -164,4 +175,5 @@ export const customMdastToHastHandlers: {
 } = {
     message: md2hHandler_message,
     listItem: listItemHandler,
+    hashtag: md2hHandler_hashtag,
 }

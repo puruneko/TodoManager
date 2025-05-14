@@ -13,11 +13,7 @@ import rehypeStringify from "rehype-stringify"
 import { customMdastToHastHandlers } from "./md2hHandlers"
 import { __debugPrint__impl } from "../debugtool/debugtool"
 import { customComponentsFromHast } from "./h2reactHandler"
-import {
-    md2mdParserPlugin_debug,
-    myFromMarkdown,
-    rubyAttacher,
-} from "./md2mdHandler"
+import { md2mdParserPlugin_hashtag } from "./md2mdHandler"
 import { getTasks } from "./mdText2taskHandler"
 
 //
@@ -43,9 +39,8 @@ const initializeMdProcessorImpl = () => {
                 //mdastExtensions: [MMTaggableSyntax()],
             })
             //@ts-ignore(問題なし)
-            .use(md2mdParserPlugin_debug)
+            .use(md2mdParserPlugin_hashtag)
             //@ts-ignore(問題なし)
-            //.use(rubyAttacher)
             .use(remarkGfm)
             //
             //transformer(mdast->hast)
@@ -57,13 +52,14 @@ const initializeMdProcessorImpl = () => {
             //@ts-ignore(OSSの型定義が古い)
             .use(rehypeReact, {
                 ...production,
-                components: customComponentsFromHast,
+                //components: customComponentsFromHast,
             })
         //.use(rehypeStringify)
     )
 }
 
-const initializeMdProcessorImpl_Html = () => {
+/*
+const initializeMdProcessorImpl_DevHtml = () => {
     return (
         unified()
             //
@@ -76,7 +72,7 @@ const initializeMdProcessorImpl_Html = () => {
                 //mdastExtensions: [MMTaggableSyntax()],
             })
             //@ts-ignore(問題なし)
-            .use(md2mdParserPlugin_debug)
+            .use(md2mdParserPlugin_hashtag)
             //@ts-ignore(問題なし)
             //.use(rubyAttacher)
             .use(remarkGfm)
@@ -90,6 +86,7 @@ const initializeMdProcessorImpl_Html = () => {
             .use(rehypeStringify)
     )
 }
+*/
 export const initializeMdProcessor = () => {
     mdProcessor = initializeMdProcessorImpl()
     return mdProcessor
@@ -107,18 +104,20 @@ export const parseMarkdown = (mdText: string) => {
     //
     //debug
     //
-    const htmlProcessor = initializeMdProcessorImpl_Html()
+    /*
+    const htmlProcessor = initializeMdProcessorImpl_DevHtml()
     const mdastTree_html = htmlProcessor.parse(mdText)
     const hastTree_html = htmlProcessor.runSync(mdastTree_html)
     const compiled_html = htmlProcessor.processSync(mdText)
     const html = compiled_html.value
+    __debugPrint__("parsedHTML", html)
+    */
     //
     __debugPrint__("parsed", {
         mdastTree,
         hastTree,
         compiled,
         reactComponent,
-        html,
     })
     return { mdastTree, hastTree, compiled, reactComponent }
 }

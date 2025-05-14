@@ -99,38 +99,11 @@ const isTaskItem = (node) => {
     return node.type == "listItem" && node.checked !== undefined
 }
 
-function md2mdParserTester_debug(node: MdastNode): node is MdastParagraph {
-    //console.log("in isMessagePattern", structuredClone({ node }))
-    return isParagraph(node)
-    /*
-    if (!isParagraph(node)) {
-        return false
-    }
-
-    const {     children } = node
-
-    const firstChild = children[0]
-    if (
-        //@ts-ignore
-        !(isText(firstChild) && firstChild.value.startsWith(MESSAGE_BEGGINING))
-    ) {
-        return false
-    }
-
-    const lastChild = children[children.length - 1]
-    //@ts-ignore
-    if (!(isText(lastChild) && lastChild.value.endsWith(MESSAGE_ENDING))) {
-        return false
-    }
-
-    return true
-    */
-}
 const getTextPosition = (targetText: string): UnistPositionWithOffset => {
     const lines = targetText.split("\n")
     const lineNumberInText = lines.length - 1
     const column = lines[lineNumberInText].length
-    return {
+    const res = {
         start: {
             line: 1,
             column: 1,
@@ -142,27 +115,25 @@ const getTextPosition = (targetText: string): UnistPositionWithOffset => {
             offset: targetText.length,
         },
     }
+    return res
 }
-/*
-const operatePosition = (x: UnistPositionWithOffset, y: UnistPositionWithOffset, f:(a:number,b:number)=>number): UnistPositionWithOffset => {
-    return {
+const toPositionShift = (
+    position: UnistPositionWithOffset
+): UnistPositionWithOffset => {
+    const res = {
         start: {
-            line: f(x.start.line, y.start.line),
-            column: f(x.start.column, y.start.column),
-            offset: f(x.start.offset, y.start.offset),
+            line: position.start.line - 1,
+            column: position.start.column - 1,
+            offset: position.start.offset,
         },
         end: {
-            line: f(x.end.line, y.end.line),
-            column: f(x.end.column, y.end.column),
-            offset: f(x.end.offset, y.end.offset),
+            line: position.end.line - 1,
+            column: position.end.column - 1,
+            offset: position.end.offset,
         },
     }
+    return res
 }
-const operateAddPosition = (x: UnistPositionWithOffset, y: UnistPositionWithOffset): UnistPositionWithOffset => {
-    const f = (a,b)=>a+b
-    return operatePosition(x,y,f)
-}
-*/
 const getTextInlinePosition = (
     baseText: string,
     basePosition: UnistPositionWithOffset,
@@ -172,38 +143,45 @@ const getTextInlinePosition = (
     //
     const preText = baseText.slice(0, startOffset)
     const prePosition = getTextPosition(preText)
+    const prePositionShift = toPositionShift(prePosition)
+    const isPreMultiLine = prePosition.start.line !== prePosition.end.line
     //
     const targetRelPosition = getTextPosition(targetText)
-    const shiftPosition = {
+    const targetRelPositionShift = toPositionShift(targetRelPosition)
+    const isTargetRelMultiLine =
+        targetRelPosition.start.line !== targetRelPosition.end.line
+    const positionShift = {
         start: {
-            line:
-                targetRelPosition.start.line - 1 + (prePosition.start.line - 1),
-            column:
-                targetRelPosition.start.column -
-                1 +
-                (prePosition.start.column - 1),
-            offset: targetRelPosition.start.offset + prePosition.start.offset,
+            line: prePositionShift.end.line,
+            column: prePositionShift.end.column,
+            offset: prePositionShift.end.offset,
         },
         end: {
-            line: targetRelPosition.end.line - 1 + (prePosition.end.line - 1),
+            line: prePositionShift.end.line + targetRelPositionShift.end.line,
             column:
-                targetRelPosition.end.column - 1 + (prePosition.end.column - 1),
-            offset: targetRelPosition.end.offset + prePosition.end.offset,
+                targetRelPositionShift.end.column +
+                (isTargetRelMultiLine ? prePositionShift.end.column : 0),
+            offset:
+                prePositionShift.end.offset + targetRelPositionShift.end.offset,
         },
     }
     const res = {
         start: {
-            line: basePosition.start.line + shiftPosition.start.line,
-            column: shiftPosition.start.column,
-            offset: basePosition.start.offset + shiftPosition.start.offset,
+            line: basePosition.start.line + positionShift.start.line,
+            column: 1 + positionShift.start.column,
+            offset: basePosition.start.offset + positionShift.start.offset,
         },
         end: {
-            line: basePosition.start.line + shiftPosition.end.line,
-            column: shiftPosition.end.column,
-            offset: basePosition.start.offset + shiftPosition.end.offset,
+            line: basePosition.start.line + positionShift.end.line,
+            column: 1 + positionShift.end.column,
+            offset: basePosition.start.offset + positionShift.end.offset,
         },
     }
     return res
+}
+
+function md2mdParserTester_hashtag(node: MdastNode): node is MdastParagraph {
+    return isParagraph(node)
 }
 /**
  * visitのtest関数がtrueなら呼ばれる
@@ -213,11 +191,12 @@ const getTextInlinePosition = (
  * @param parent    引数nodeの親要素
  * @returns undefined
  */
-const md2mdParserVisitor_debug: Visitor<MdastParagraph, UnistParent> = (
+const md2mdParserVisitor_hashtag: Visitor<MdastParagraph, UnistParent> = (
     node: MdastParagraph,
     index: number | undefined,
     parent: UnistParent | undefined
 ) => {
+    const TAG_NAME = "hashtag"
     const PRE_SYMBOL = "#"
     //const OLD_regstrHashtag = new RegExp(`(${PRE_SYMBOL}(\\w)+)`, "gi")
     const regstrHashtag = new RegExp(`${PRE_SYMBOL}(\\S+)`, "gi")
@@ -263,67 +242,6 @@ const md2mdParserVisitor_debug: Visitor<MdastParagraph, UnistParent> = (
             const hashtagText = match[0] as string
             const hashtagName = match[1] as string
             const hashtagOffset = match.index
-            //
-            /*
-            const startOffsetInPhrasingContent = match.index
-            const beforeHashtagText = paragraphChild.value.slice(
-                0,
-                startOffsetInPhrasingContent
-            )
-            const startColumnInPhrasingContent = beforeHashtagText
-                .split("\n")
-                .reverse()[0].length
-            const startLineNumberInPhrasingContent =
-                beforeHashtagText.split("\n").length - 1
-            //
-            const endOffsetInPhrasingContent =
-                startOffsetInPhrasingContent + hashtagText.length
-            const endColumnInPhrasingContent = hashtagText
-                .split("\n")
-                .reverse()[0].length
-            const endLineNumberInPhrasingContent =
-                startLineNumberInPhrasingContent +
-                hashtagText.split("\n").length -
-                1
-            const positionShift: UnistPositionWithOffset = {
-                start: {
-                    line: startLineNumberInPhrasingContent,
-                    column: startColumnInPhrasingContent,
-                    offset: startOffsetInPhrasingContent,
-                },
-                end: {
-                    line: endLineNumberInPhrasingContent,
-                    column: endColumnInPhrasingContent,
-                    offset: endOffsetInPhrasingContent,
-                },
-            }
-            const p_dev = paragraphChild.position
-                ? ({
-                      start: {
-                          line:
-                              paragraphChild.position.start.line +
-                              positionShift.start.line,
-                          column:
-                              paragraphChild.position.start.column +
-                              positionShift.start.column,
-                          offset:
-                              paragraphChild.position.start.offset +
-                              positionShift.start.offset,
-                      },
-                      end: {
-                          line:
-                              paragraphChild.position.start.line +
-                              positionShift.end.line,
-                          column:
-                              paragraphChild.position.start.column +
-                              positionShift.end.column,
-                          offset:
-                              paragraphChild.position.start.offset +
-                              positionShift.end.offset,
-                      },
-                  } as UnistPositionWithOffset)
-                : undefined
-            */
             const pos_hashtag = getTextInlinePosition(
                 paragraphChild.value,
                 paragraphChild.position,
@@ -337,8 +255,8 @@ const md2mdParserVisitor_debug: Visitor<MdastParagraph, UnistParent> = (
                 hashtagText
             )
             node.children.push({
-                //@tes-ignore(typeの追加のためOK)
-                type: "strong", //"hashtag",
+                //@ts-ignore(typeの追加のためOK)
+                type: TAG_NAME,
                 children: [
                     { type: "text", value: hashtagText, position: pos_text },
                 ],
@@ -387,16 +305,14 @@ const md2mdParserVisitor_debug: Visitor<MdastParagraph, UnistParent> = (
     })
 }
 
-export const md2mdParserPlugin_debug = (preset) => {
+export const md2mdParserPlugin_hashtag = (preset) => {
     return (tree: MdastNode, _file: VFileCompatible) => {
         //@ts-ignore
-        visit(tree, md2mdParserTester_debug, md2mdParserVisitor_debug)
+        visit(tree, md2mdParserTester_hashtag, md2mdParserVisitor_hashtag)
     }
 }
 
-//
-//tag
-//
+/*
 
 const TAG_BEGGINING = ":::message\n"
 const TAG_ENDING = "\n:::"
@@ -425,14 +341,6 @@ function md2mdParserTester_tag(node: MdastNode): node is MdastParagraph {
 
     return true
 }
-/**
- * visitのtest関数がtrueなら呼ばれる
- * 引数のnodeはtest関数で検査されたブロック単位のnode
- * @param node      test関数でマッチしたnode
- * @param index     引数parentから見た引数nodeのインデックス
- * @param parent    引数nodeの親要素
- * @returns undefined
- */
 const md2mdParserVisitor_tag: Visitor<MdastParagraph, UnistParent> = (
     node: MdastParagraph,
     index: number | undefined,
@@ -501,10 +409,6 @@ export function rubyAttacher(this: Processor) {
     // inlineMethod には適用する tokenizer の名前が配列で示されており、配列内の順番がそのまま tokenizer を実行する順番（=優先順位）になります。
     const self = this
 
-    /**
-     * @param {string} document
-     * @returns {Root}
-     */
     self.parser = function (document) {
         return fromMarkdown(document, {
             ...self.data("settings"),
@@ -515,7 +419,6 @@ export function rubyAttacher(this: Processor) {
             mdastExtensions: self.data("fromMarkdownExtensions") || [],
         })
     }
-    /*
     //@ts-ignore
     this.Parser = parse
     const { Parser } = this
@@ -528,17 +431,12 @@ export function rubyAttacher(this: Processor) {
     rubyTokenizer.locator = rubyLocator
     inlineTokenizers.ruby = rubyTokenizer
     inlineMethods.splice(inlineMethods.indexOf("text"), 0, "ruby")
-    */
 }
 
 export function myFromMarkdown(options: Partial<FromMarkdownOptions>) {
     //@ts-ignore
     const self = this
 
-    /**
-     * @param {string} document
-     * @returns {Root}
-     */
     self.parser = function (document) {
         const encoding = {
             ...self.data("settings"),
@@ -559,3 +457,5 @@ export function myFromMarkdown(options: Partial<FromMarkdownOptions>) {
         return parser
     }
 }
+
+*/

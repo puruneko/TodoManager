@@ -28,7 +28,8 @@ import {
     getMonacoScrollTopPxByLineNumber,
     mdRange2monacoRange,
 } from "./monacoUtils"
-import { render } from "@testing-library/react"
+//
+import "./texteditor.css"
 
 //
 const __debugPrint__ = (...args: any) => {
@@ -118,13 +119,14 @@ const SampleTexteditor: React.FC<T_SampleTextareaProps> = (props) => {
     //
     //
     const PreviewComponent = memo(({ component }: any) => {
-        //__debugPrint__("PreviewComponent", renderToString(component))
+        __debugPrint__("PreviewComponent", component)
         if (component) {
-            return <>{component}</>
+            return <div>{component}</div>
         }
         return <></>
     })
     ////////////////////////////////
+    __debugPrint__("render", mdProps)
     return (
         <div style={{ maxWidth: "100%" }}>
             <h1 style={{ color: debug }}>TEXTEDITOR</h1>
@@ -156,7 +158,7 @@ const SampleTexteditor: React.FC<T_SampleTextareaProps> = (props) => {
             <br />
             <hr />
             <h2>PREVIEW</h2>
-            <PreviewComponent mdProps={mdProps.mdParsed.reactComponent} />
+            <PreviewComponent component={mdProps.mdParsed.reactComponent} />
         </div>
     )
 }

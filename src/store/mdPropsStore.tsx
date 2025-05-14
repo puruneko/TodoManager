@@ -16,7 +16,7 @@ import { dictMap } from "../utils/iterable"
 import { parseMarkdown } from "../texteditor/remarkProcessing"
 import { genLinetext, getTasks } from "../texteditor/mdText2taskHandler"
 import { debugMdTextSimple, debugMdTextSimple2 } from "../debugtool/sampleMd"
-import { dateT_Props2string, getDateProps } from "../utils/datetime"
+import { toStringFromDateProps, getDateProps } from "../utils/datetime"
 import {
     T_DateHashtag,
     filterDateHashtag,
@@ -242,7 +242,7 @@ export const toTaskIdFromMdRange = (mdRange: T_MdRange): string => {
     return eventid
 }
 
-export const toCEventIdFromT_MdRange = (
+export const toCEventIdFromMdRange = (
     mdRange: T_MdRange,
     cT_Event: T_CEventType
 ): string => {
@@ -282,7 +282,7 @@ export const toDateHashtagNameFromCEventId = (
     return null
 }
 export const toDateStringFromDateProps = (dateProps: any) => {
-    const d = dateT_Props2string(dateProps)
+    const d = toStringFromDateProps(dateProps)
     __debugPrint__("toDateStringFromDateProps", d)
     if (d) {
         return `${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`

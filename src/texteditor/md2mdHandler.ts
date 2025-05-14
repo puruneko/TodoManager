@@ -27,6 +27,7 @@ import {
     fromMarkdown,
     Options as FromMarkdownOptions,
 } from "mdast-util-from-markdown"
+import { matchAllHashtag, regexpHashtag } from "./hashtag"
 
 ////////////////////////////////
 function isObject(target: unknown): target is { [key: string]: unknown } {
@@ -61,32 +62,10 @@ export function isText(node: unknown): node is MdastText {
         typeof node.value === "string"
     )
 }
-
-function processFirstChild(children: Array<UnistNode>, identifier: string) {
-    const firstChild = children[0] as UnistLiteral
-    const firstValue = firstChild.value as string
-    if (firstValue === identifier) {
-        children.shift()
-    } else {
-        children[0] = {
-            ...firstChild,
-            value: firstValue.slice(identifier.length),
-        } as UnistLiteral
-    }
-}
-
-function processLastChild(children: Array<UnistNode>, identifier: string) {
-    const lastIndex = children.length - 1
-    const lastChild = children[lastIndex] as UnistLiteral
-    const lastValue = lastChild.value as string
-    if (lastValue === identifier) {
-        children.pop()
-    } else {
-        children[lastIndex] = {
-            ...lastChild,
-            value: lastValue.slice(0, lastValue.length - identifier.length),
-        } as UnistLiteral
-    }
+export function isTag(node: unknown): node is MdastText {
+    return (
+        isLiteral(node) && node.type === "tag" && typeof node.value === "string"
+    )
 }
 
 //
@@ -199,34 +178,32 @@ const md2mdParserVisitor_hashtag: Visitor<MdastParagraph, UnistParent> = (
     const TAG_NAME = "hashtag"
     const PRE_SYMBOL = "#"
     //const OLD_regstrHashtag = new RegExp(`(${PRE_SYMBOL}(\\w)+)`, "gi")
-    const regstrHashtag = new RegExp(`${PRE_SYMBOL}(\\S+)`, "gi")
+    //const regstrHashtag = new RegExp(`${PRE_SYMBOL}(\\S+)`, "gi")
     const children = [...node.children]
     node.children = []
 
     children.forEach((_child: PhrasingContent) => {
-        if (!isText(_child)) {
+        if (!isTag(_child)) {
             node.children.push(_child)
             return
         }
         const paragraphChild = nodeWithPosition(_child)
+        const paragraphText = paragraphChild.value
 
-        const matches = Array.from(
-            paragraphChild.value.matchAll(regstrHashtag),
-            (x) => x
-        )
+        const hashtagMatches = matchAllHashtag(paragraphText)
 
-        if (matches.length === 0) {
+        if (hashtagMatches.length === 0) {
             node.children.push(paragraphChild)
             return true
         }
 
-        if (matches[0].index > 0) {
-            const beforeHashtagText = paragraphChild.value.slice(
+        if (hashtagMatches[0].match.index > 0) {
+            const beforeHashtagText = paragraphText.slice(
                 0,
-                matches[0].index
+                hashtagMatches[0].match.index
             )
             const pos_before = getTextInlinePosition(
-                paragraphChild.value,
+                paragraphText,
                 paragraphChild.position,
                 0,
                 beforeHashtagText
@@ -238,18 +215,19 @@ const md2mdParserVisitor_hashtag: Visitor<MdastParagraph, UnistParent> = (
             })
         }
 
-        matches.forEach((match: any, index) => {
+        hashtagMatches.forEach((hashtagMatch: any, index) => {
+            const match = hashtagMatch.match
             const hashtagText = match[0] as string
             const hashtagName = match[1] as string
             const hashtagOffset = match.index
             const pos_hashtag = getTextInlinePosition(
-                paragraphChild.value,
+                paragraphText,
                 paragraphChild.position,
                 hashtagOffset,
                 hashtagText
             )
             const pos_text = getTextInlinePosition(
-                paragraphChild.value,
+                paragraphText,
                 paragraphChild.position,
                 hashtagOffset + PRE_SYMBOL.length,
                 hashtagText
@@ -264,14 +242,14 @@ const md2mdParserVisitor_hashtag: Visitor<MdastParagraph, UnistParent> = (
             })
 
             //途中の要素
-            if (matches.length > index + 1) {
+            if (hashtagMatches.length > index + 1) {
                 const startAt = hashtagOffset + hashtagText.length
-                const subtext = paragraphChild.value.slice(
+                const subtext = paragraphText.slice(
                     startAt,
-                    matches[index + 1].index - startAt
+                    hashtagMatches[index + 1].match.index - startAt
                 )
                 const pos = getTextInlinePosition(
-                    paragraphChild.value,
+                    paragraphText,
                     paragraphChild.position,
                     startAt,
                     subtext
@@ -284,14 +262,14 @@ const md2mdParserVisitor_hashtag: Visitor<MdastParagraph, UnistParent> = (
             }
         })
 
-        const lastMatch = matches[matches.length - 1]
+        const lastMatch = hashtagMatches[hashtagMatches.length - 1].match
         const lastMatchAt = lastMatch.index + lastMatch[0].length
 
         //@ts-ignore
-        if (lastMatchAt < paragraphChild.value.length) {
-            const lastText = paragraphChild.value.slice(lastMatchAt)
+        if (lastMatchAt < paragraphText.length) {
+            const lastText = paragraphText.slice(lastMatchAt)
             const pos = getTextInlinePosition(
-                paragraphChild.value,
+                paragraphText,
                 paragraphChild.position,
                 lastMatchAt,
                 lastText
@@ -306,10 +284,26 @@ const md2mdParserVisitor_hashtag: Visitor<MdastParagraph, UnistParent> = (
 }
 
 export const md2mdParserPlugin_hashtag = (preset) => {
-    return (tree: MdastNode, _file: VFileCompatible) => {
+    const visitor = (tree: MdastNode, _file: VFileCompatible) => {
         //@ts-ignore
         visit(tree, md2mdParserTester_hashtag, md2mdParserVisitor_hashtag)
     }
+    /*
+
+    const self =  this
+    //@ts-ignore
+    const data = self.data()
+
+    const micromarkExtensions =
+        data.micromarkExtensions || (data.micromarkExtensions = [])
+    const fromMarkdownExtensions =
+        data.fromMarkdownExtensions || (data.fromMarkdownExtensions = [])
+    const toMarkdownExtensions =
+        data.toMarkdownExtensions || (data.toMarkdownExtensions = [])
+
+    fromMarkdownExtensions.push(visitor)
+    */
+    return visitor
 }
 
 /*
@@ -371,6 +365,32 @@ export const md2mdParserPlugin_tag = () => {
 //////////////////////////////////////
 //////////////////////////////////////
 //////////////////////////////////////
+function processFirstChild(children: Array<UnistNode>, identifier: string) {
+    const firstChild = children[0] as UnistLiteral
+    const firstValue = firstChild.value as string
+    if (firstValue === identifier) {
+        children.shift()
+    } else {
+        children[0] = {
+            ...firstChild,
+            value: firstValue.slice(identifier.length),
+        } as UnistLiteral
+    }
+}
+
+function processLastChild(children: Array<UnistNode>, identifier: string) {
+    const lastIndex = children.length - 1
+    const lastChild = children[lastIndex] as UnistLiteral
+    const lastValue = lastChild.value as string
+    if (lastValue === identifier) {
+        children.pop()
+    } else {
+        children[lastIndex] = {
+            ...lastChild,
+            value: lastValue.slice(0, lastValue.length - identifier.length),
+        } as UnistLiteral
+    }
+}
 function rubyLocator(value, fromIndex) {
     return value.indexOf("｜", fromIndex)
 }
@@ -433,6 +453,8 @@ export function rubyAttacher(this: Processor) {
     inlineMethods.splice(inlineMethods.indexOf("text"), 0, "ruby")
 }
 
+*/
+
 export function myFromMarkdown(options: Partial<FromMarkdownOptions>) {
     //@ts-ignore
     const self = this
@@ -457,5 +479,3 @@ export function myFromMarkdown(options: Partial<FromMarkdownOptions>) {
         return parser
     }
 }
-
-*/

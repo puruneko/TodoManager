@@ -19,8 +19,7 @@ import { __debugPrint__impl } from "../debugtool/debugtool"
 import {
     filterDateHashtag,
     T_Hashtag,
-    splitHashtag,
-    getHashtagProps,
+    getHashtagFromString,
     removeHashtagPrefix,
 } from "./hashtag"
 
@@ -213,7 +212,7 @@ const genTask = (
             })
             .map((hashtagNode: MdastNode) => {
                 const hashtagLinetext = getNodeChildrenText(hashtagNode)
-                const hashtag = getHashtagProps(hashtagLinetext)
+                const hashtag = getHashtagFromString(hashtagLinetext)
                 if (hashtag) {
                     return {
                         name: hashtag.name,

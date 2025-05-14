@@ -18,6 +18,7 @@ export const HASHTAG_PREFIX = "#"
 export const dateHashtagList: { [name: string]: T_CEventType } = {
     due: "due",
     plan: "plan",
+    event: "event",
 }
 
 export const regexpHashtag = new RegExp(
@@ -45,35 +46,55 @@ export const getHashtagByName = (
     throw Error(`duplicate hashtag name: ${hashtagName}`)
 }
 
-/**
- * hashtagStrからhashtagのnameとvalueを抜き出す
- * @param hashtagStr
- * @returns T_Hashtag| null
- */
-export const getHashtagProps = (hashtagStr: string): T_Hashtag | null => {
-    let res: T_Hashtag | null = null
+type T_MatchHashtag = {
+    match: RegExpExecArray
+    hashtag: T_Hashtag
+}
+export const toHashtagFromMatch = (match: RegExpExecArray): T_Hashtag => {
+    const [whole, sep, name, value] = match
+    const res: T_Hashtag = {
+        name,
+        value,
+    }
+    return res
+}
+export const matchAllHashtag = (hashtagStr: string): T_MatchHashtag[] => {
+    const matches = Array.from(hashtagStr.matchAll(regexpHashtag), (match) => {
+        return {
+            match,
+            hashtag: toHashtagFromMatch(match),
+        } as T_MatchHashtag
+    })
+    return matches
+}
+export const matchHashtag = (hashtagStr: string): T_MatchHashtag | null => {
+    let res: T_MatchHashtag | null = null
     const removed = removeHashtagPrefix(hashtagStr)
     const cleaned = `${HASHTAG_PREFIX}${removed}`
-    const matches = Array.from(cleaned.matchAll(regexpHashtag), (x) => x)
+    const matches = matchAllHashtag(cleaned)
     if (matches.length > 0) {
-        const [whole, sep, name, value] = matches[0]
-        res = {
-            name,
-            value,
-        } as T_Hashtag
+        res = matches[0]
     }
     return res
 }
 
 /**
- * textからhashtagを切り出す
- * @param text
- * @returns
+ * hashtagStrからhashtagのnameとvalueを抜き出す
+ * @param hashtagStr
+ * @returns T_Hashtag| null
  */
-export const splitHashtag = (text: string): T_Hashtag[] => {
-    return Array.from(text.matchAll(regexpHashtag), (hashtag) => {
-        const index = hashtag.index
-        const [whole, sep, name, value] = hashtag
+export const getHashtagFromString = (hashtagStr: string): T_Hashtag | null => {
+    const removed = removeHashtagPrefix(hashtagStr)
+    const cleaned = `${HASHTAG_PREFIX}${removed}`
+    const res = matchHashtag(cleaned)
+    return res ? res.hashtag : null
+}
+
+/*
+export const splitHashtag = (text: string): T_MatchHashtag[] => {
+    return Array.from(text.matchAll(regexpHashtag), (match) => {
+        const index = match.index
+        const [whole, sep, name, value] = match
         const range: T_MdRange = {
             start: {
                 lineNumber: -1,
@@ -86,9 +107,12 @@ export const splitHashtag = (text: string): T_Hashtag[] => {
                 offset: index + sep.length + whole.length,
             },
         }
-        return { name: name, value: value, range: range }
+        return {
+            match: hashtag,
+            hashtag:{ name: name, value: value, range: range }
     })
 }
+*/
 
 const regstrDateHashtag = new RegExp(
     "[~]?(\\d{4}-\\d{1,2}-\\d{1,2})([T_](\\d{1,2}(:\\d{1,2}(:\\d{1,2})?)?))?",

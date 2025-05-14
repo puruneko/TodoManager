@@ -28,7 +28,7 @@ export const getDateProps = <T = number>(
         return null
     }
 }
-export const dateT_Props2string = (dateProps: any) => {
+export const toStringFromDateProps = (dateProps: any) => {
     if (dateProps) {
         return {
             year: String(dateProps.year).padStart(4, "0"),

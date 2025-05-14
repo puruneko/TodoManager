@@ -3,7 +3,9 @@ sample1 #tag_1
 sample2 #tag_2
 `
 export const debugMdTextSimple2 = `｜aaa《AAA》
-#HASHtag
+
+#sample~tag1 #sample~tag2
+
 # PJ1
 - [ ] task1_*BOLD*_~DELETE~_ #TAGtask10 #TAGtask10_2
     - DESCRIPTION(1-1)*bold*EOL

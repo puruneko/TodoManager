@@ -6,6 +6,13 @@ const ComponentCustomCheckbox = (props) => {
         </div>
     )
 }
+const ComponentCustomHashtag = (props) => {
+    return (
+        <span className="custom-hashtag">
+            @@customhashtag@@{props.children}
+        </span>
+    )
+}
 
 /**
  * コンパイラに渡す
@@ -23,4 +30,5 @@ const ComponentCustomCheckbox = (props) => {
 export const customComponentsFromHast = {
     //message: component_message,
     customCheckbox: ComponentCustomCheckbox,
+    hashtag: ComponentCustomHashtag,
 }

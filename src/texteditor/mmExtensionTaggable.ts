@@ -1,122 +1,65 @@
-/*
-import { codes } from "micromark-util-symbol"
-import { markdownLineEnding } from "micromark-util-character"
-import {
-    TokenizeContext,
-    Effects,
-    State,
-    Code,
-    Extension,
-    Construct,
-} from "micromark-util-types"
+//@ts-nocheck
 
-import { Literal } from "unist"
-import * as unist from "unist"
-import { Data } from "mdast"
+export function micromarkExtensionTag() {
+    const TAG_NAME = "tag"
+    //let valueCursor = 0
 
-//////////
-//////////
-//////////
-//////////
-
-const defaultOptions: Options = {
-    classes: ["micromark-taggable"],
-    rules: [
-        {
-            marker: "#",
-            type: "tag",
-            toUrl: (val) => `/tags/${val}`,
-            classes: ["tag"],
+    return {
+        text: {
+            35: { tokenize: tagTokenizer }, // '#' のコードポイント
         },
-        {
-            marker: "@",
-            type: "mention",
-            toUrl: (val) => `/users/${val}`,
-            classes: ["mention"],
-        },
-    ],
-    allowEmail: false,
-}
-
-export interface Rules {
-    marker: string
-    type: string
-    toUrl: (arg: string) => string
-    classes?: Array<string>
-}
-export interface Taggable extends Literal {
-    type: "taggable"
-    ctx: string
-    marker: string
-    value: string
-    url: string | undefined
-}
-
-export interface Options {
-    classes: Array<string>
-    rules: Array<Rules>
-    allowEmail?: boolean
-}
-
-export interface InlineTaggableData {
-    marker: string
-    type: string
-    url: string
-}
-
-export interface InlineTaggableNode extends unist.Literal {
-    type: "taggable"
-    value: string
-    data: Data & InlineTaggableData
-}
-
-declare module "mdast" {
-    interface PhrasingContentMap {
-        inlineTaggableNode: InlineTaggableNode
     }
 
-    interface RootContentMap {
-        inlineTaggableNode: InlineTaggableNode
-    }
-}
-
-//////////
-//////////
-//////////
-//////////
-//////////
-//////////
-
-declare module "micromark-util-types" {
-    interface TokenTypeMap {
-        taggable: "taggable"
-        taggableMarker: "taggableMarker"
-        taggableValue: "taggableValue"
-    }
-}
-
-export function syntax(opts: Options = defaultOptions): Extension {
-    if (opts.allowEmail == undefined) opts.allowEmail = false
-    const rules = opts.rules
-    let valueCursor = 0
-    const markers = []
-    const typeMap = new Map()
-    const allowEmail = opts.allowEmail
-
-    for (const i of rules) {
-        //@ts-ignore
-        markers.push(i.marker)
-        typeMap.set(i.marker, i.type)
-    }
-
-    function tokenize(
-        this: TokenizeContext,
+    function tagTokenizer(
+        //this: TokenizeContext,
         effects: Effects,
         ok: State,
         nok: State
     ): State {
+        let buffer = ""
         return start
 
+        function start(code) {
+            if (code !== 35) return nok(code)
+            //
+            effects.enter(TAG_NAME)
+            //
+            effects.consume(code)
+            return insideTag
+        }
+        function insideTag(code) {
+            // 終了条件: null（終わり）、空白、改行、キャリッジリターン
+            if (code === null || code === 32 || code === 10 || code === 13) {
+                /*
+                if (buffer.trim() !== "") {
+                    console.log("insideTag: buffer content", buffer)
+                    // タグのテキストをノードに追加
+                    //
+                    //
+                    for (let i = 0; i < buffer.length; i++) {
+                        effects.consume(buffer.charCodeAt(i)) // テキストを消費
+                        console.log(
+                            "insideTag: consumed text char",
+                            buffer.charCodeAt(i)
+                        )
+                    }
+                    //
+                    //
+                }
+                    */
+                //
+                effects.exit(TAG_NAME) // 'tag' ノードの終了
+                //
+                return ok(code) // 次の処理へ
+            }
+
+            // bufferに文字を追加
+            buffer += String.fromCharCode(code)
+            effects.consume(code) // 現在のコードポイントを消費
+            return insideTag
+        }
+    }
+    /*
         function start(code: Code) {
             if (!code || markdownLineEnding(code) || code === codes.eof) {
                 return nok(code)
@@ -128,7 +71,7 @@ export function syntax(opts: Options = defaultOptions): Extension {
         }
 
         function consumeMarker(code: Code) {
-            if (!code || !typeMap.has(String.fromCodePoint(code))) {
+            if (!code || code !== 35) {
                 return nok(code)
             }
 
@@ -141,14 +84,7 @@ export function syntax(opts: Options = defaultOptions): Extension {
         }
 
         function consumeValue(code: Code) {
-            if (
-                !code ||
-                markdownLineEnding(code) ||
-                code === codes.eof ||
-                !(allowEmail
-                    ? /[\p{L}\p{M}@.]/u.test(String.fromCodePoint(code))
-                    : /[\p{L}\p{M}]/u.test(String.fromCodePoint(code)))
-            ) {
+            if (!code || markdownLineEnding(code) || code === codes.eof) {
                 if (valueCursor < 1) {
                     return nok(code)
                 } else {
@@ -162,16 +98,35 @@ export function syntax(opts: Options = defaultOptions): Extension {
             effects.consume(code)
             return consumeValue
         }
-    }
-
-    // Marker-hooks
-    const text: { [c: number]: Construct } = {}
-
-    for (const i of markers) {
-        //@ts-ignore
-        text[i.codePointAt(0)!] = { name: `tag_${i}`, tokenize: tokenize }
-    }
-
-    return { text }
+    }*/
 }
-*/
+
+export function fromMarkdownTag() {
+    return {
+        enter: {
+            tag(token) {
+                this.enter({ type: "tag", value: "", data: {} }, token) // MDAST ノード作成
+            },
+        },
+        exit: {
+            tag(token) {
+                const node = this.stack[this.stack.length - 1]
+                node.value = this.sliceSerialize(token) // ここでタグの文字列が value に入る
+                this.exit(token)
+            },
+        },
+    }
+}
+
+export function customTagExtension() {
+    // remark プラグイン形式で micromark/mdast 拡張を登録
+    const data = this.data()
+
+    function add(field, value) {
+        if (!data[field]) data[field] = []
+        data[field].push(value)
+    }
+
+    add("micromarkExtensions", micromarkExtensionTag())
+    add("fromMarkdownExtensions", fromMarkdownTag())
+}

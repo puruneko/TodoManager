@@ -52,7 +52,7 @@ import {
 import { __debugPrint__impl } from "../debugtool/debugtool"
 import { useIcChannel } from "../store/interComponentChannelStore"
 import { nonPropagatingEvent } from "../utils/htmlEvents"
-import { dateT_Props2string, getDateProps } from "../utils/datetime"
+import { toStringFromDateProps, getDateProps } from "../utils/datetime"
 import {
     getHashtagByName,
     toDateHashtagValueFromDateRange,
@@ -338,10 +338,10 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
         const range = getCEventInfoProps(fcEvent, "range")
         //
         const d = {
-            start: dateT_Props2string(
+            start: toStringFromDateProps(
                 getDateProps(getCEventInfoProps(fcEvent, "start"), String)
             ),
-            end: dateT_Props2string(
+            end: toStringFromDateProps(
                 getDateProps(getCEventInfoProps(fcEvent, "end"), String)
             ),
         }
@@ -576,10 +576,10 @@ const CEventDisplayComponent = (props: CEventDisplayComponentPropsType) => {
     const range = getCEventInfoProps(fcEvent, "range")
     //
     const d = {
-        start: dateT_Props2string(
+        start: toStringFromDateProps(
             getDateProps(getCEventInfoProps(fcEvent, "start"), String)
         ),
-        end: dateT_Props2string(
+        end: toStringFromDateProps(
             getDateProps(getCEventInfoProps(fcEvent, "end"), String)
         ),
     }

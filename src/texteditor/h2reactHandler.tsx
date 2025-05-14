@@ -1,9 +1,9 @@
-const component_dev = (props) => {
+const ComponentCustomCheckbox = (props) => {
     return (
-        <>
+        <div style={{ display: "flex", flexDirection: "row" }}>
             <input type="checkbox" />
-            {props.children}
-        </>
+            <span style={{ color: "red" }}>@@{props.children}</span>
+        </div>
     )
 }
 
@@ -22,5 +22,5 @@ const component_dev = (props) => {
  */
 export const customComponentsFromHast = {
     //message: component_message,
-    mycheckbox: component_dev,
+    customCheckbox: ComponentCustomCheckbox,
 }

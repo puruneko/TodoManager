@@ -297,35 +297,45 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
         __debugPrint__("handleElementDroppedOnCalendar", dropinfo)
     }
     //
+    // cEvnetCard Events
+    //
+    const handleCEventCardCheckboxClicked = (
+        id: string,
+        selectionRange: T_MdRange
+    ) => {
+        const cEvent = getCEventById(mdProps.cEvents, id)
+        if (cEvent) {
+            cEvent.checked =
+                cEvent.checked !== undefined ? !cEvent.checked : true
+            updateEvents([cEvent])
+            icChannel.send("texteditor", "setSelection", {
+                range: selectionRange,
+            })
+        }
+    }
+    const handleCEventCardClicked = (id: string, selectionRange: T_MdRange) => {
+        console.log(getCEventById(mdProps.cEvents, id))
+        icChannel.send("texteditor", "focusTextarea", {
+            range: selectionRange,
+        })
+    }
+    //
     /**
      * イベントの見た目の定義
      * @param cEventInfo
      * @returns
      */
-    const CEventDisplayComponent = (fcEventInfo: EventContentArg) => {
+    const _OLD_CEventDisplayComponent = (
+        fcEventInfo: EventContentArg,
+        handleCEventCardCheckboxClicked: any,
+        handleCEventCardClicked: any
+    ) => {
         //
         const fcEvent = fcEventInfo.event
         //
         const id = getCEventInfoProps(fcEvent, "id")
         const checked = getCEventInfoProps(fcEvent, "checked")
-        //
-        const handleCEventAreaClicked = (id) => {
-            console.log(getCEventById(mdProps.cEvents, id))
-            icChannel.send("texteditor", "focusTextarea", {
-                range: getCEventInfoProps(fcEvent, "range"),
-            })
-        }
-        const handleCheckboxClicked = () => {
-            const cEvent = getCEventById(mdProps.cEvents, id)
-            if (cEvent) {
-                cEvent.checked =
-                    cEvent.checked !== undefined ? !cEvent.checked : true
-                updateEvents([cEvent])
-                icChannel.send("texteditor", "setSelection", {
-                    range: getCEventInfoProps(fcEvent, "range"),
-                })
-            }
-        }
+        const range = getCEventInfoProps(fcEvent, "range")
         //
         const d = {
             start: dateT_Props2string(
@@ -356,7 +366,7 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
                         backgroundColor: checked ? "lightgray" : "lightgreen",
                     }}
                     onClick={(e) => {
-                        handleCEventAreaClicked(id)
+                        handleCEventCardClicked(id, range)
                         e.stopPropagation()
                     }}
                 >
@@ -372,7 +382,7 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
                             type="checkbox"
                             checked={checked}
                             onClick={(e) => {
-                                handleCheckboxClicked()
+                                handleCEventCardCheckboxClicked(id, range)
                                 e.stopPropagation()
                             }}
                             onChange={() => {}}
@@ -396,6 +406,23 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
         } else {
             return null
         }
+    }
+
+    /**
+     * イベントの見た目の定義
+     * @param cEventInfo
+     * @returns
+     */
+    const CEventDisplayComponentWrapper = (fcEventInfo: EventContentArg) => {
+        return (
+            <CEventDisplayComponent
+                fcEventInfo={fcEventInfo}
+                handleCEventCardCheckboxClicked={
+                    handleCEventCardCheckboxClicked
+                }
+                handleCEventCardClicked={handleCEventCardClicked}
+            />
+        )
     }
     //
     __debugPrint__("mdProps.cEvents in calendar", mdProps.cEvents, inputCEvent)
@@ -514,7 +541,7 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
                     drop={handleElementDroppedOnCalendar}
                     eventReceive={handleElementDroppedOnCalendar}
                     //display component
-                    eventContent={CEventDisplayComponent}
+                    eventContent={CEventDisplayComponentWrapper}
                     eventBackgroundColor="rgba(255, 255, 255, 0)"
                     eventBorderColor="rgba(255, 255, 255, 0)"
                 />
@@ -522,5 +549,102 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
         </div>
     )
 }
+//
 
+//
+/**
+ * イベントの見た目の定義
+ * @param cEventInfo
+ * @returns
+ */
+type CEventDisplayComponentPropsType = {
+    fcEventInfo: EventContentArg
+    handleCEventCardCheckboxClicked: any
+    handleCEventCardClicked: any
+}
+const CEventDisplayComponent = (props: CEventDisplayComponentPropsType) => {
+    const {
+        fcEventInfo,
+        handleCEventCardCheckboxClicked,
+        handleCEventCardClicked,
+    } = props
+    //
+    const fcEvent = fcEventInfo.event
+    //
+    const id = getCEventInfoProps(fcEvent, "id")
+    const checked = getCEventInfoProps(fcEvent, "checked")
+    const range = getCEventInfoProps(fcEvent, "range")
+    //
+    const d = {
+        start: dateT_Props2string(
+            getDateProps(getCEventInfoProps(fcEvent, "start"), String)
+        ),
+        end: dateT_Props2string(
+            getDateProps(getCEventInfoProps(fcEvent, "end"), String)
+        ),
+    }
+    if (d.start) {
+        let timeText = `${d.start.hour}:${d.start.minute}`
+        if (d.end) {
+            timeText += `- ${d.end.hour}:${d.end.minute}`
+        }
+        const depsText = (getCEventInfoProps(fcEvent, "deps") || [])
+            .map((dep) => {
+                return dep.title
+            })
+            .join(" > ")
+        const tags = getCEventInfoProps(fcEvent, "tags")
+        const description = getCEventInfoProps(fcEvent, "description")
+        //
+        return (
+            <div
+                key={id}
+                className="calender-cEventcard"
+                style={{
+                    backgroundColor: checked ? "lightgray" : "lightgreen",
+                }}
+                onClick={(e) => {
+                    handleCEventCardClicked(id, range)
+                    e.stopPropagation()
+                }}
+            >
+                <div className="calender-cEventcard-header">
+                    <div style={{ flexGrow: 1 }}>{depsText}</div>
+                    <div>{timeText}</div>
+                </div>
+                <div
+                    className="calender-cEventcard-title"
+                    style={{ display: "inline-flex", flexDirection: "row" }}
+                >
+                    <input
+                        type="checkbox"
+                        checked={checked}
+                        onClick={(e) => {
+                            handleCEventCardCheckboxClicked(id, range)
+                            e.stopPropagation()
+                        }}
+                        onChange={() => {}}
+                    />
+                    <p>{fcEvent.title}</p>
+                </div>
+                <div className="calender-cEventcard-tags">
+                    <p className="p-text-ellipsis">
+                        {tags ? tags.join(",") : ""}
+                    </p>
+                </div>
+                <div className="calender-cEventcard-description">
+                    <pre style={{ maxWidth: "100%", textWrap: "wrap" }}>
+                        {description
+                            ? description.replace(/\n( {4}|\\t)/g, "\n")
+                            : ""}
+                    </pre>
+                </div>
+            </div>
+        )
+    } else {
+        return null
+    }
+}
+
+//
 export default SampleCalendar

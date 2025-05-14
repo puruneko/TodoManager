@@ -118,10 +118,10 @@ const SampleTexteditor: React.FC<T_SampleTextareaProps> = (props) => {
     }
     //
     //
-    const PreviewComponent = memo(({ component }: any) => {
-        __debugPrint__("PreviewComponent", component)
-        if (component) {
-            return <div>{component}</div>
+    const PreviewComponent = memo(({ Component }: any) => {
+        __debugPrint__("PreviewComponent", Component)
+        if (Component) {
+            return <div>{Component}</div>
         }
         return <></>
     })
@@ -158,7 +158,7 @@ const SampleTexteditor: React.FC<T_SampleTextareaProps> = (props) => {
             <br />
             <hr />
             <h2>PREVIEW</h2>
-            <PreviewComponent component={mdProps.mdParsed.reactComponent} />
+            <PreviewComponent Component={mdProps.mdParsed.reactComponent} />
         </div>
     )
 }

@@ -1,10 +1,12 @@
 ////////////////////////////////
+import { Fragment, createElement } from "react"
+import production from "react/jsx-runtime"
+//
 import { Processor, unified } from "unified"
 import remarkParse from "remark-parse"
 import remarkGfm from "remark-gfm"
 import remarkRehype from "remark-rehype"
 //import rehypeStringify from "rehype-stringify"
-import production from "react/jsx-runtime"
 import rehypeReact from "rehype-react"
 import rehypeStringify from "rehype-stringify"
 //
@@ -45,14 +47,19 @@ const initializeMdProcessorImpl = () => {
             //
             //transformer(mdast->hast)
             //
-            .use(remarkRehype, { handlers: customMdastToHastHandlers })
+            .use(remarkRehype, {
+                allowDangerousHtml: true,
+                handlers: customMdastToHastHandlers,
+            })
             //
             //compiler(hast->react or html)
             //
             //@ts-ignore(OSSの型定義が古い)
             .use(rehypeReact, {
                 ...production,
-                //components: customComponentsFromHast,
+                Fragment,
+                components: customComponentsFromHast,
+                createElement,
             })
         //.use(rehypeStringify)
     )

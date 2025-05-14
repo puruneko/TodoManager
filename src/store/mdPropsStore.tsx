@@ -136,7 +136,7 @@ const toCEventFromMdTask = (mdTask: T_MdTask): T_CEvent[] | null => {
     if (dateHashtags.length == 0) {
         return null
     }
-    return dateHashtags.map((dateHashtag) => {
+    const res = dateHashtags.map((dateHashtag) => {
         const cT_Event: T_CEventType =
             dateHashtag.name == "due"
                 ? "due"
@@ -154,6 +154,7 @@ const toCEventFromMdTask = (mdTask: T_MdTask): T_CEvent[] | null => {
             description: mdTask.description.value,
         })
     })
+    return res
 }
 
 //

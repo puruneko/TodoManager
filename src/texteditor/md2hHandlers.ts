@@ -60,7 +60,7 @@ export function listItemHandler(state, node, parent) {
         */
         paragraph.children.unshift({
             type: "element",
-            tagName: "mycheckbox", //"input", //
+            tagName: "customCheckbox", //"input", //
             properties: {
                 type: "checkbox",
                 checked: node.checked,

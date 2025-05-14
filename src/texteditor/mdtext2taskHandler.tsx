@@ -16,7 +16,13 @@ import {
     toTaskIdFromMdRange,
 } from "../store/mdPropsStore"
 import { __debugPrint__impl } from "../debugtool/debugtool"
-import { filterDateHashtag, T_Hashtag, splitHashtag } from "./hashtag"
+import {
+    filterDateHashtag,
+    T_Hashtag,
+    splitHashtag,
+    getHashtagProps,
+    removeHashtagPrefix,
+} from "./hashtag"
 
 //
 //
@@ -42,7 +48,7 @@ interface MdastMdNode extends UnistNode {
 }
 
 //
-const unistPosition2mdRange = (position: UnistPosition): T_MdRange => {
+export const unistPosition2mdRange = (position: UnistPosition): T_MdRange => {
     if (
         position.start.offset === undefined ||
         position.end.offset === undefined
@@ -145,6 +151,16 @@ export const genLinetext = (mdObjType: string, task: T_MdTask): string => {
     return linetext
 }
 
+/**
+ * listItem(tasklist)からtaskを生成。
+ * paragraphの初めのchildをtaskValueとする。
+ * その後ろのhashtagをhashtagとして登録。
+ * hashtagの間の文字は無視。
+ * @param mdText
+ * @param listitem
+ * @param headings
+ * @returns
+ */
 const genTask = (
     mdText,
     listitem: MdastListItem & MdastMdNode,
@@ -189,47 +205,38 @@ const genTask = (
 
     //taskの作成
     if (unistpos) {
-        const mdRange = unistPosition2mdRange(unistpos)
-
-        const hashtags = splitHashtag(linetext).map((hashtag) => {
-            return {
-                ...hashtag,
-                range: hashtag.range
-                    ? {
-                          start: {
-                              lineNumber: unistpos.start.line,
-                              column:
-                                  unistpos.start.column +
-                                  hashtag.range.start.offset,
-                              offset:
-                                  unistpos.start.offset +
-                                  hashtag.range.start.offset,
-                          },
-                          end: {
-                              lineNumber: unistpos.start.line,
-                              column:
-                                  unistpos.start.column +
-                                  hashtag.range.end.offset,
-                              offset:
-                                  unistpos.start.offset +
-                                  hashtag.range.end.offset,
-                          },
-                      }
-                    : undefined,
-            } as T_Hashtag
-        })
-        let dateHashtags = filterDateHashtag(hashtags)
+        //hashtag
+        const hashtags = paragraphItem.children
+            .filter((child) => {
+                //@ts-ignore
+                return child.type === "hashtag"
+            })
+            .map((hashtagNode: MdastNode) => {
+                const hashtagLinetext = getNodeChildrenText(hashtagNode)
+                const hashtag = getHashtagProps(hashtagLinetext)
+                if (hashtag) {
+                    return {
+                        name: hashtag.name,
+                        value: hashtag.value,
+                        range: hashtagNode.position
+                            ? unistPosition2mdRange(hashtagNode.position)
+                            : undefined,
+                    } as T_Hashtag
+                }
+            })
+            .filter((hashtag) => {
+                return !!hashtag
+            })
+        //datehashtag
         /*
-            .filter((h) => h.replace("#", "").startsWith("scheduled"))
-            .map((h) => {
-                return toDateRangeFromDateHashtagValue(h)
-            }) //[NOTE]scheduledタグは１つしか付けられない想定の実装
-        */
+        let dateHashtags = filterDateHashtag(hashtags)
         if (dateHashtags.length == 0) {
             //@ts-ignore(後で型の整合性をとる)
             dateHashtags = [{ name: "", value: { start: null, end: null } }]
         }
-        return {
+        */
+        const mdRange = unistPosition2mdRange(unistpos)
+        const res = {
             id: toTaskIdFromMdRange(mdRange),
             value: linetext,
             deps: headings,
@@ -246,6 +253,7 @@ const genTask = (
             },
             checked: listitem.checked || false,
         } as T_MdTask
+        return res
     }
     return null
 }

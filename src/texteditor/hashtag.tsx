@@ -13,15 +13,21 @@ export type T_Hashtag = {
 export type T_DateHashtag = Omit<T_Hashtag, "value"> & {
     value: T_DatetimeRange
 }
+export const HASHTAG_PREFIX = "#"
+
 export const dateHashtagList: { [name: string]: T_CEventType } = {
     due: "due",
     plan: "plan",
 }
 
 export const regexpHashtag = new RegExp(
-    "([ 　]|^)[#]([^\\s:]+)(?:[:](\\S+))?(?=[ 　]|$)",
+    `([ 　]|^)[${HASHTAG_PREFIX}]([^\\s:]+)(?:[:](\\S+))?(?=[ 　]|$)`,
     "g"
 )
+
+export const removeHashtagPrefix = (hashtagStr: string): string => {
+    return hashtagStr.replace(new RegExp(`([ 　]|^)?[${HASHTAG_PREFIX}]`), "")
+}
 
 export const getHashtagByName = (
     hashtags: T_Hashtag[],
@@ -40,7 +46,27 @@ export const getHashtagByName = (
 }
 
 /**
- *
+ * hashtagStrからhashtagのnameとvalueを抜き出す
+ * @param hashtagStr
+ * @returns T_Hashtag| null
+ */
+export const getHashtagProps = (hashtagStr: string): T_Hashtag | null => {
+    let res: T_Hashtag | null = null
+    const removed = removeHashtagPrefix(hashtagStr)
+    const cleaned = `${HASHTAG_PREFIX}${removed}`
+    const matches = Array.from(cleaned.matchAll(regexpHashtag), (x) => x)
+    if (matches.length > 0) {
+        const [whole, sep, name, value] = matches[0]
+        res = {
+            name,
+            value,
+        } as T_Hashtag
+    }
+    return res
+}
+
+/**
+ * textからhashtagを切り出す
  * @param text
  * @returns
  */
@@ -175,6 +201,7 @@ export const filterDateHashtag = (hashtags: T_Hashtag[]): T_DateHashtag[] => {
             return {
                 name: dateHashtagRaw.name,
                 value: toDateRangeFromDateHashtagValue(dateHashtagRaw.value),
+                range: dateHashtagRaw.range,
             }
         })
 }

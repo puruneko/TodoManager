@@ -17,7 +17,7 @@ import { __debugPrint__impl } from "../debugtool/debugtool"
 import { customComponentsFromHast } from "./h2reactHandler"
 import { md2mdParserPlugin_hashtag } from "./md2mdHandler"
 import { getTasks } from "./mdText2taskHandler"
-import { customTagExtension } from "./mmExtensionTaggable"
+import { customTagMMPlugin } from "./mmExtensionTaggable"
 
 //
 //
@@ -45,7 +45,7 @@ const initializeMdProcessorImpl = () => {
             .use(remarkGfm)
             //@ts-ignore(問題なし)
             .use(md2mdParserPlugin_hashtag)
-            .use(customTagExtension)
+            .use(customTagMMPlugin())
             //
             //transformer(mdast->hast)
             //

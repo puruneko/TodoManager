@@ -1,3 +1,5 @@
+import { HASHTAG_ALIES } from "./mmExtensionTaggable"
+
 const ComponentCustomCheckbox = (props) => {
     return (
         <div style={{ display: "flex", flexDirection: "row" }}>
@@ -7,11 +9,7 @@ const ComponentCustomCheckbox = (props) => {
     )
 }
 const ComponentCustomHashtag = (props) => {
-    return (
-        <span className="custom-hashtag">
-            @@customhashtag@@{props.children}
-        </span>
-    )
+    return <span className={HASHTAG_ALIES}>{props.children}</span>
 }
 
 /**
@@ -30,5 +28,5 @@ const ComponentCustomHashtag = (props) => {
 export const customComponentsFromHast = {
     //message: component_message,
     customCheckbox: ComponentCustomCheckbox,
-    hashtag: ComponentCustomHashtag,
+    [HASHTAG_ALIES]: ComponentCustomHashtag,
 }

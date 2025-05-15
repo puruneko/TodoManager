@@ -1,4 +1,4 @@
-import { State } from "mdast-util-to-hast"
+import { Handler as HastHandler, State } from "mdast-util-to-hast"
 
 import {
     Node as MdastNode,
@@ -8,7 +8,16 @@ import {
     Paragraph as MdastParagraph,
     Text as MdastText,
 } from "mdast"
-import { Element as HastElement } from "hast"
+import {
+    Literal as HastLiteral,
+    Element as HastElement,
+    ElementContent,
+} from "hast"
+import { HASHTAG_ALIES } from "./mmExtensionTaggable"
+
+import type { CustomHashtag as MdastCustomHashtag } from "mdast"
+//
+import { __debugPrint__ } from "../debugtool/debugtool"
 
 /**
  * Turn an mdast `listItem` node into hast.
@@ -142,38 +151,33 @@ function listItemLoose(node) {
 
 ////////////////////////////////
 
-const md2hHandler_message: T_MdastToHastHandler = (state, node, parent) => {
-    return {
-        type: "element",
-        tagName: "div",
-        properties: {
-            className: ["msg"],
+const md2hHandler_hashtag: HastHandler = (
+    state,
+    node: MdastCustomHashtag,
+    parent
+): HastElement => {
+    const children: ElementContent[] = [
+        //...state.all(node)
+        {
+            type: "text",
+            value: node.value,
+            position: node.position,
         },
-        children: state.all(node),
-    }
-}
-
-const md2hHandler_hashtag: T_MdastToHastHandler = (state, node, parent) => {
+    ]
+    __debugPrint__("md2hHandler_hashtag", state, node, children)
     return {
         type: "element",
-        tagName: "hashtag", //"span",
+        tagName: HASHTAG_ALIES,
         properties: {
             //className: ["myhashtag"],
         },
-        children: state.all(node),
+        children: children,
     }
 }
 
-type T_MdastToHastHandler = (
-    state: State,
-    node: MdastNodes,
-    parent: MdastParents
-) => HastElement
-
 export const customMdastToHastHandlers: {
-    [key: string]: T_MdastToHastHandler
+    [key: string]: HastHandler
 } = {
-    message: md2hHandler_message,
     listItem: listItemHandler,
-    hashtag: md2hHandler_hashtag,
+    [HASHTAG_ALIES]: md2hHandler_hashtag,
 }

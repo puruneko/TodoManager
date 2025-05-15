@@ -23,3 +23,19 @@ export const stringFormat = (str: string, ...args: unknown[]): string => {
     }
     return str
 }
+
+export const codePointAt = (char: string): number => {
+    const res = char.codePointAt(0)
+    if (res === undefined) {
+        throw Error(`undefined code point of ${char[0]} (${char})`)
+    }
+    return res
+}
+
+export const fromCharPoint = (code: number): string => {
+    const res = String.fromCodePoint(code)
+    if (res === undefined) {
+        throw Error(`undefined char of code '${code}'`)
+    }
+    return res
+}

@@ -27,12 +27,12 @@ import * as React from "react"
 
 type Attr = string | number | boolean | null | undefined
 
-type MDPosition = [number, number]
+type MDPositionRange = [number, number]
 
 type StrictASTNode = {
     type: string
     inline: boolean
-    pos: MDPosition
+    posRange: MDPositionRange
     text: string
     children: ASTNodeArray //ASTNode | Array<ASTNode>
     key?: string
@@ -82,14 +82,15 @@ const genFragmentParseRuleResult = (options?: { [key: string]: any }) => {
 const toASTNodeFromParseRuleReslt = <T = ASTNode>(
     parseRuleResult: ParseRefRuleResult,
     {
-        pos,
+        posRange,
         ...options
-    }: Pick<ASTLikeNode<T>, "pos"> & Partial<Omit<ASTLikeNode<T>, "pos">>
+    }: Pick<ASTLikeNode<T>, "posRange"> &
+        Partial<Omit<ASTLikeNode<T>, "posRange">>
 ): ASTLikeNode<T> => {
     return {
         ...parseRuleResult,
         ...options,
-        pos,
+        posRange,
     } as ASTLikeNode<T>
 }
 
@@ -300,9 +301,26 @@ var FORMFEED_R = /\f/g
 /**
  * Turn various whitespace into easy-to-process whitespace
  */
+const cleansingSource = (
+    source: string,
+    formfeed = true,
+    newline = true,
+    tab = false
+) => {
+    let _source = source
+    if (formfeed) {
+        _source = _source.replace(FORMFEED_R, "")
+    }
+    if (newline) {
+        _source = _source.replace(CR_NEWLINE_R, "\n")
+    }
+    if (tab) {
+        _source = _source.replace(TAB_R, "    ")
+    }
+    return _source
+}
 var preprocess = function (source: string): string {
-    return source.replace(CR_NEWLINE_R, "\n").replace(FORMFEED_R, "")
-    //.replace(TAB_R, "    ")
+    return source //cleansingSource(source)
 }
 
 var populateInitialState = function (
@@ -320,26 +338,29 @@ var populateInitialState = function (
     return state
 }
 
-const getPositionOffset = (str_all: string, str_target: string): number => {
-    const pos = str_all.indexOf(str_target)
-    return pos >= 0 ? pos : 0
+const getPositionRangeOffset = (
+    str_all: string,
+    str_target: string
+): number => {
+    const posRange = str_all.indexOf(str_target)
+    return posRange >= 0 ? posRange : 0
 }
-const shiftGlobalPosition = (
+const getShiftedGlobalCursor = (
     state: State,
     shift: number,
     allowMinus = false
 ) => {
-    if (shift >= 0 || allowMinus) {
-        state.posGlobal += shift
-    }
-    return state.posGlobal
+    return state.cursorGlobal + (shift >= 0 || allowMinus ? shift : 0)
 }
-const getPosition = (
-    posGlobal: number,
-    posLocal: number,
+const getShiftedLocalCursor = (cursorLocal: number, shift: number) => {
+    return cursorLocal + shift
+}
+const getPositionRange = (
+    cursorGlobal: number,
+    cursorLocal: number,
     ownLength: number
-): MDPosition => {
-    return [posGlobal + posLocal, posGlobal + posLocal + ownLength]
+): MDPositionRange => {
+    return [cursorGlobal + cursorLocal, cursorGlobal + cursorLocal + ownLength]
 }
 
 /**
@@ -423,17 +444,21 @@ var parserFor = function (
         upperCapture: Capture | null
     ): ASTNodeArray {
         state.parseNumber = state.ParseNumber ? state.ParseNumber + 1 : 1
-        var ParsedResultASTNodeArray: ASTNodeArray = []
+        var parsedResultASTNodeArray: ASTNodeArray = []
         state = state || latestState
         latestState = Object.assign({}, state)
-        let posLocal = 0
-        const upperPosOffset = upperCapture
-            ? getPositionOffset(upperCapture[0], source)
+        let cursorLocal = 0
+
+        /*[pos]
+        const upperPosRangeOffset = upperCapture
+            ? getPositionRangeOffset(upperCapture[0], source)
             : 0
-        shiftGlobalPosition(state, upperPosOffset)
+        state.cursorGlobal = getShiftedGlobalCursor(state, upperPosRangeOffset)
+        */
+
         /*
         console.debug(
-            `upperPosOffset:${upperPosOffset}
+            `upperPosRangeOffset:${upperPosRangeOffset}
 --------
 ${(upperCapture || [""])[0]}
 --------
@@ -524,7 +549,7 @@ ${source}`
                     state.nestLevel
                 }](${ruleType})
 ${sourceCaptured}
-<<gPos:  ${state.posGlobal},  lPos:  ${posLocal} >>
+<<gPosRange:  ${state.cursorGlobal},  lPosRange:  ${cursorLocal} >>
 biteStringLength:${biteStringLength}`
             )
             console.debug(Object.assign({}, { state, source, capture }))
@@ -548,18 +573,25 @@ biteStringLength:${biteStringLength}`
                 )
                     */
                 callerState.nestLevel += 1
-                const calleeState = Object.assign({}, callerState)
+                const calleeState = structuredClone(callerState)
                 calleeState.parent = {
                     ruleType,
                 }
-                //calleeState.posGlobal += biteStringLength
+                //calleeState.cursorGlobal += biteStringLength
                 const res = nestedParse(callerSource, calleeState, upperCapture)
                 callerState.nestLevel -= 1
                 return res
             }
             //return [AST]
-            const newState = Object.assign({}, state)
-            newState.posGlobal += posLocal
+            const newState = structuredClone(state) //Object.assign({}, state)
+
+            /*[pos]
+            newState.cursorGlobal = getShiftedGlobalCursor(
+                newState,
+                cursorLocal
+            )
+            */
+
             /*
             console.debug(
                 `${" ".repeat(state.nestLevel * 2)}rule.parse(${ruleType})`
@@ -568,46 +600,6 @@ biteStringLength:${biteStringLength}`
             var parsed = rule.parse(capture, nestedParseWrapper, newState)
 
             //////////////// save result phase ////////////////
-
-            // We maintain the same object here so that rules can
-            // store references to the objects they return and
-            // modify them later. (oops sorry! but this adds a lot
-            // of power--see reflinks.)
-            /*
-            if (!Array.isArray(parsed)) {
-                parsed = [parsed]
-            }
-            ;(parsed as [ParseRuleResult]).forEach((p: ParseRuleResult) => {
-                if (p == null || typeof p !== "object") {
-                    throw new Error(
-                        `parse() function returned invalid parse result: '${parsed}'`
-                    )
-                }
-
-                // We also let rules override the default type of
-                // their parsed node if they would like to, so that
-                // there can be a single output function for all links,
-                // even if there are several rules to parse them.
-                if (p.type == null) {
-                    p.type = ruleType
-                }
-                if (!p.key) {
-                    p.key = state.parseNumber
-                }
-                if (!p.pos) {
-                    p.pos = getPosition(
-                        state.posGlobal,
-                        posLocal,
-                        biteStringLength
-                    )
-                }
-                ParsedResultASTNodeArray.push(p)
-            })
-            */
-            // We maintain the same object here so that rules can
-            // store references to the objects they return and
-            // modify them later. (oops sorry! but this adds a lot
-            // of power--see reflinks.)
             if (parsed == null || typeof parsed !== "object") {
                 throw new Error(
                     `parse() function returned invalid parse result: '${parsed}'`
@@ -618,16 +610,23 @@ biteStringLength:${biteStringLength}`
             // their parsed node if they would like to, so that
             // there can be a single output function for all links,
             // even if there are several rules to parse them.
-            ParsedResultASTNodeArray.push(
+            parsedResultASTNodeArray.push(
                 toASTNodeFromParseRuleReslt(parsed, {
-                    pos:
-                        parsed.pos && parsed.pos[0] >= 0 && parsed.pos[1] >= 0
-                            ? parsed.pos
-                            : getPosition(
-                                  state.posGlobal,
-                                  posLocal,
+                    posRange: [
+                        state.cursorGlobal,
+                        state.cursorGlobal + biteStringLength,
+                    ],
+                    /*
+                        parsed.posRange &&
+                        parsed.posRange[0] >= 0 &&
+                        parsed.posRange[1] >= 0
+                            ? parsed.posRange
+                            : getPositionRange(
+                                  state.cursorGlobal,
+                                  cursorLocal,
                                   biteStringLength
                               ),
+                    */
                     key: parsed.key || state.parseNumber,
                 })
             )
@@ -635,17 +634,18 @@ biteStringLength:${biteStringLength}`
             /*
             console.debug(
                 `${" ".repeat(state.nestLevel * 2)}result.push(${ruleType})`,
-                ParsedResultASTNodeArray[ParsedResultASTNodeArray.length - 1],
-                ParsedResultASTNodeArray[ParsedResultASTNodeArray.length - 1].pos
+                parsedResultASTNodeArray[parsedResultASTNodeArray.length - 1],
+                parsedResultASTNodeArray[parsedResultASTNodeArray.length - 1].posRange
             )*/
 
             state.prevCapture = capture
             source = source.substring(biteStringLength)
-            posLocal += biteStringLength
+            state.cursorGlobal += biteStringLength
+            cursorLocal = getShiftedLocalCursor(cursorLocal, biteStringLength)
         }
-        state.posGlobal += posLocal
+        state.cursorGlobal = getShiftedGlobalCursor(state, cursorLocal)
 
-        return ParsedResultASTNodeArray
+        return parsedResultASTNodeArray
     }
 
     var outerParse: Parser = function (
@@ -667,7 +667,7 @@ biteStringLength:${biteStringLength}`
         latestState.parent = {
             ruleType: "",
         }
-        latestState.posGlobal = 0
+        latestState.cursorGlobal = 0
         latestState.nestLevel = 0
         return nestedParse(preprocess(source), latestState, null)
     }
@@ -913,8 +913,8 @@ const TASK_LIST_BULLET = "\\[[^\\[\\]]+?\\]"
 const QUOTE_LIST_BULLET = "[>]"
 const NORMAL_WITH_TASK_LIST_BULLET = `${NORMAL_LIST_BULLET}(?: +${TASK_LIST_BULLET})?`
 var LIST_BULLETS = `(?:${NORMAL_WITH_TASK_LIST_BULLET}|${ORDERED_LIST_BULLET}|${QUOTE_LIST_BULLET})`
-const IS_NORMAL_LIST_R = new RegExp(`\s*${NORMAL_LIST_BULLET}\s*`)
-const IS_ORDERED_LIST_R = new RegExp(`\s*${ORDERED_LIST_BULLET}\s*`)
+const IS_NORMAL_LIST_R = new RegExp(`\s*?${NORMAL_LIST_BULLET}\s*`)
+const IS_ORDERED_LIST_R = new RegExp(`\s*?${ORDERED_LIST_BULLET}\s*`)
 const IS_TASK_LIST_R = new RegExp(`\s*?${TASK_LIST_BULLET}\s*`)
 const IS_QUOTE_LIST_R = new RegExp(`\s*?${QUOTE_LIST_BULLET}\s*`)
 //TODO
@@ -1007,7 +1007,8 @@ var LIST_R = new RegExp(
         ")(" +
         LIST_BULLETS +
         ") " +
-        "[\\s\\S]+?(?:\n{2,}(?! )" +
+        //"[\\s\\S]+?(?:\n{2,}(?! )" +
+        "([\\s\\S]+?)(?:\n{2,}(?! )" +
         "(?!\\1" +
         LIST_BULLETS +
         " )\\n*" +
@@ -1441,7 +1442,7 @@ const default_listRule: DefaultRules["list"] = {
         //
         //リスト接頭文字列から始まる文字列ごとに行内の文字列を再帰的にパース
         //
-        let posLocal = 0
+        let cursorLocal = 0
         const liArray: ASTNodeArray = items.map(function (
             item: string,
             i: number
@@ -1524,9 +1525,9 @@ const default_listRule: DefaultRules["list"] = {
                     children: children_children,
                 }),
                 {
-                    pos: getPosition(
-                        state.posGlobal,
-                        posLocal + spaceLength,
+                    posRange: getPositionRange(
+                        state.cursorGlobal,
+                        cursorLocal + spaceLength,
                         listBlockContent.length
                     ),
                     liType: childLiType,
@@ -1536,13 +1537,13 @@ const default_listRule: DefaultRules["list"] = {
             /*
             console.debug(
                 "itemContent",
-                state.posGlobal,
-                posLocal,
+                state.cursorGlobal,
+                cursorLocal,
                 spaceLength,
                 listBlockContent,
                 listBlockContent.length,
-                itemContent.pos[0],
-                itemContent.pos[1],
+                itemContent.posRange[0],
+                itemContent.posRange[1],
                 itemContent
             )
                 */
@@ -1550,7 +1551,7 @@ const default_listRule: DefaultRules["list"] = {
             // Restore our state before returning
             state.inline = oldStateInline
             state._list = oldStateList
-            posLocal += item.length
+            cursorLocal += item.length
             //
             return liASTNode
         })
@@ -1567,12 +1568,12 @@ const default_listRule: DefaultRules["list"] = {
     react: function (node, nestedOutput, state) {
         let wrapperGroups: {
             liType: LiType
-            pos: MDPosition
+            posRange: MDPositionRange
             children: ReactElement[]
         }[] = [
             {
                 liType: node.liType,
-                pos: node.pos,
+                posRange: node.posRange,
                 children: [],
             },
         ]
@@ -1585,7 +1586,7 @@ const default_listRule: DefaultRules["list"] = {
             //ordered
             if (liType === "ordered") {
                 elem = reactElement("li", `${state.key}.${i}`, {
-                    "data-pos": liNode.pos,
+                    "data-posRange": liNode.posRange,
                     children: nestedOutput(liNode.children, state),
                 })
             }
@@ -1602,16 +1603,16 @@ const default_listRule: DefaultRules["list"] = {
                 elem = reactElement("li", `${state.key}.${i}`, {
                     className: `${taskStatus}`,
                     //onClick: checkboxFunc,
-                    "data-pos": liNode.pos,
+                    "data-posRange": liNode.posRange,
                     children: nestedOutput(liNode.children, state),
                 })
             }
             //quote
             else if (liType === "quote") {
                 elem = reactElement("li", `${state.key}.${i}`, {
-                    "data-pos": liNode.pos,
+                    "data-posRange": liNode.posRange,
                     children: reactElement("code", `${state.key}.${i}`, {
-                        "data-pos": liNode.pos,
+                        "data-posRange": liNode.posRange,
                         children: nestedOutput(liNode.children, state),
                     }),
                 })
@@ -1621,7 +1622,7 @@ const default_listRule: DefaultRules["list"] = {
                 let bulletName = IS_NORMAL_LIST_R.exec(liNode.liBullet)?.[0]
                 elem = reactElement("li", `${state.key}.${i}`, {
                     className: `${LIST_CLASSNAME_PREFIX}-${liType}-${bulletName}`,
-                    "data-pos": liNode.pos,
+                    "data-posRange": liNode.posRange,
                     children: nestedOutput(liNode.children, state),
                 })
             }
@@ -1638,14 +1639,15 @@ const default_listRule: DefaultRules["list"] = {
                         {},
                         {
                             liType: liType,
-                            pos: Object.assign([], liNode.pos),
+                            posRange: Object.assign([], liNode.posRange),
                             children: [elem],
                         }
                     )
                 )
             } else {
                 wrapperGroups[wrapperGroups.length - 1].children.push(elem)
-                wrapperGroups[wrapperGroups.length - 1].pos[1] = liNode.pos[1]
+                wrapperGroups[wrapperGroups.length - 1].posRange[1] =
+                    liNode.posRange[1]
             }
             prevLiType = liNode.liType
         }
@@ -1658,7 +1660,7 @@ const default_listRule: DefaultRules["list"] = {
                         ? "ordered-start-hasnot-work-yet"
                         : undefined
                 return reactElement(wrapperType, `${state.key}.${i}`, {
-                    "data-pos": group.pos,
+                    "data-posRange": group.posRange,
                     children: group.children,
                     "data-comment": comment,
                 })
@@ -2118,7 +2120,7 @@ const default_emRule: DefaultRules["em"] = {
         const nestedSource = capture[2] || capture[1]
         /*
             const shift = capture[0].indexOf(nestedSource)
-            shiftGlobalPosition(state, shift)
+            state.cursorGlobal = getShiftedGlobalCursor(state, shift)
             */
         //
         return genParseRuleResult({
@@ -2237,7 +2239,7 @@ const default_textRule: DefaultRules["text"] = {
             children: reactElement("span", state.key, {
                 children: node.text,
                 className: "previewText",
-                "data-pos": node.pos,
+                "data-posRange": node.posRange,
             }),
         })
     },
@@ -2652,15 +2654,17 @@ export const SimpleMarkdown = {
     parserFor: parserFor,
     outputFor: outputFor,
 
-    genParseRuleResult: genParseRuleResult,
-
     inlineRegex: inlineRegex,
     blockRegex: blockRegex,
     anyScopeRegex: anyScopeRegex,
     nestedParseInline: nestedParseInline,
     parseBlock: parseBlock,
 
+    // utils of rules
+
+    genParseRuleResult: genParseRuleResult,
     getInnerText: getInnerText,
+    cleansingSource: cleansingSource,
 
     // default wrappers:
     markdownToReact: markdownToReact,

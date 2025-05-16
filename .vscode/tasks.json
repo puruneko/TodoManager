@@ -1,0 +1,13 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "npm",
+            "script": "dev",
+            "problemMatcher": ["$tsc", "$tsc-watch"],
+            "label": "npm: dev",
+            "detail": "vite",
+            "isBackground": true
+        }
+    ]
+}

@@ -2,15 +2,27 @@
     // IntelliSense を使用して利用可能な属性を学べます。
     // 既存の属性の説明をホバーして表示します。
     // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
+    //"type": "pwa-msedge",
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "pwa-msedge",
+            "type": "msedge",
             "request": "launch",
-            "name": "localhost に対して Edge を起動する",
+            "name": "ReactDebug(localhost に対して Edge を起動する)",
             "url": "http://localhost:5173",
             "webRoot": "${workspaceFolder}",
             "preLaunchTask": "npm: dev"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "TestVitest(Debug Current Test File)",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+            "program": "${workspaceRoot}/node_modules/vitest/vitest.mjs",
+            "args": ["run", "${relativeFile}"],
+            "smartStep": true,
+            "console": "integratedTerminal"
         }
     ]
 }

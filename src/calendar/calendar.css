@@ -1,0 +1,63 @@
+.p-text-ellipsis {
+    overflow-x: hidden;
+    overflow-y: clip;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.calender-cEventcard {
+    max-width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    font-size: 1rem;
+}
+
+.calender-cEventcard * {
+    margin-block: 0;
+    margin-inline: 0;
+    margin: 0.1em 0.1em 0 0.1em;
+    color: black;
+}
+
+.calender-cEventcard-header {
+    font-size: 0.5em;
+    line-height: 1em;
+    display: inline-flex;
+    flex-direction: row;
+}
+
+.calender-cEventcard-title {
+    font-size: 0.75em;
+    line-height: 1em;
+    & child {
+        line-height: 1em;
+        margin-left: 0.1em;
+        padding: 0;
+    }
+}
+
+.calender-cEventcard-tags {
+    font-size: 0.5em;
+    line-height: 1em;
+    & child {
+        line-height: 1em;
+        margin: 0 0.1em 0 0;
+        padding: 0;
+    }
+}
+
+.calender-cEventcard-description {
+    font-size: 0.75em;
+    line-height: 1em;
+    flex-shrink: 10;
+    max-width: 100%;
+    overflow-y: hidden;
+    border-top: 1px dashed gray;
+    & child {
+        line-height: 1em;
+        margin: 0 0.1em 0 0;
+        padding: 0;
+    }
+}

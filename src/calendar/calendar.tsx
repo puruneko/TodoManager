@@ -52,12 +52,12 @@ import {
 import { __debugPrint__impl } from "../debugtool/debugtool"
 import { useIcChannel } from "../store/interComponentChannelStore"
 import { nonPropagatingEvent } from "../utils/htmlEvents"
-import { toStringFromDateProps, getDateProps } from "../utils/datetime"
 import {
-    getHashtagByName,
-    toDateHashtagValueFromDateRange,
-    updateHashtag,
-} from "../texteditor/hashtag"
+    toStringFromDateProps,
+    toDatePropsFromDate,
+    toDateStringFromDateRange,
+} from "../utils/datetime"
+import { getHashtagByName, updateHashtag } from "../texteditor/hashtag"
 
 //
 //
@@ -196,7 +196,7 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
                 if (newMdTask) {
                     const newDateHashtag = {
                         name: "plan",
-                        value: toDateHashtagValueFromDateRange({
+                        value: toDateStringFromDateRange({
                             ...selection,
                         }),
                     }
@@ -339,10 +339,13 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
         //
         const d = {
             start: toStringFromDateProps(
-                getDateProps(getCEventInfoProps(fcEvent, "start"), String)
+                toDatePropsFromDate(
+                    getCEventInfoProps(fcEvent, "start"),
+                    String
+                )
             ),
             end: toStringFromDateProps(
-                getDateProps(getCEventInfoProps(fcEvent, "end"), String)
+                toDatePropsFromDate(getCEventInfoProps(fcEvent, "end"), String)
             ),
         }
         if (d.start) {
@@ -577,10 +580,10 @@ const CEventDisplayComponent = (props: CEventDisplayComponentPropsType) => {
     //
     const d = {
         start: toStringFromDateProps(
-            getDateProps(getCEventInfoProps(fcEvent, "start"), String)
+            toDatePropsFromDate(getCEventInfoProps(fcEvent, "start"), String)
         ),
         end: toStringFromDateProps(
-            getDateProps(getCEventInfoProps(fcEvent, "end"), String)
+            toDatePropsFromDate(getCEventInfoProps(fcEvent, "end"), String)
         ),
     }
     if (d.start) {

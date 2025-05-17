@@ -22,6 +22,7 @@ import {
     getHashtagFromString,
     removeHashtagPrefix,
 } from "./hashtag"
+import { HASHTAG_ALIES } from "./mmExtensionTaggable"
 
 //
 //
@@ -78,11 +79,12 @@ const removeHashtag = (linetext: string) => {
 }
 export const getNodeChildrenText = (tree): string => {
     let text = ""
-    const _tree = "type" in tree ? tree : { type: "", children: tree }
-    if (tree.type == "text") {
-        return tree.value
+    const _tree =
+        "type" in tree ? tree : { type: "__children__", children: tree }
+    if (_tree.type == "text" || "value" in _tree) {
+        return _tree.value
     }
-    for (let child of tree.children || []) {
+    for (let child of _tree.children || []) {
         if (child.type == "text") {
             text += child.value
         } else {
@@ -208,7 +210,7 @@ const genTask = (
         const hashtags = paragraphItem.children
             .filter((child) => {
                 //@ts-ignore
-                return child.type === "hashtag"
+                return child.type === HASHTAG_ALIES
             })
             .map((hashtagNode: MdastNode) => {
                 const hashtagLinetext = getNodeChildrenText(hashtagNode)

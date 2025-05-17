@@ -10,7 +10,7 @@ export type T_DatetimeProps<T = number> = {
     minute: T
     second: T
 }
-export const getDateProps = <T = number>(
+export const toDatePropsFromDate = <T = number>(
     d: Date,
     typeFunc?: (d: any) => T
 ): T_DatetimeProps<T> | null => {
@@ -40,4 +40,82 @@ export const toStringFromDateProps = (dateProps: any) => {
         }
     }
     return null
+}
+
+const DATE_SEPARATOR_STR = "-"
+const DATETIME_SEPARATOR_STR = "T"
+const TIME_SEPARATOR_STR = ":"
+const DATERANGE_SPARATOR_STR = ".."
+
+//`[~]?(\\d{4}-\\d{1,2}-\\d{1,2})([T_](\\d{1,2}(:\\d{1,2}(:\\d{1,2})?)?))?`,
+const regstrDate = `(\\d{4})${DATE_SEPARATOR_STR}(\\d{1,2})${DATE_SEPARATOR_STR}(\\d{1,2})`
+const regstrTime = `(\\d{1,2})(?:${TIME_SEPARATOR_STR}(\\d{1,2}))?(?:${TIME_SEPARATOR_STR}(\\d{1,2}))?`
+const regexpDateHashtag = new RegExp(
+    `(?:${DATERANGE_SPARATOR_STR})?${regstrDate}(?:${DATETIME_SEPARATOR_STR}${regstrTime})?`,
+    "g"
+)
+export const toDateStringFromDateProps = (dateProps: any) => {
+    const d = toStringFromDateProps(dateProps)
+    if (d) {
+        const datestr = `${d.year}${DATE_SEPARATOR_STR}${d.month}${DATE_SEPARATOR_STR}${d.day}`
+        const timestr = d.hour
+            ? `${DATETIME_SEPARATOR_STR}${d.hour}` +
+              (d.minute ? `${TIME_SEPARATOR_STR}${d.minute}` : "")
+            : ""
+        return `${datestr}${timestr}`
+    }
+    return ""
+}
+
+/**
+ *
+ * @param dateHashtagValue
+ * @returns
+ */
+export const toDateRangeFromDateString = (
+    dateString: string
+): T_DatetimeRange => {
+    const dates = Array.from(dateString.matchAll(regexpDateHashtag), (m) => {
+        const d = {
+            year: Number(m[1]),
+            month: Number(m[2]),
+            day: Number(m[3]),
+            hour: Number(m[4]),
+            minute: Number(m[5]),
+        }
+        return {
+            ...d,
+            date: new Date(d.year, d.month - 1, d.day, d.hour, d.minute),
+        }
+    })
+    return {
+        start: dates[0].date,
+        end:
+            dates[1] && !Number.isNaN(dates[1].date.getTime())
+                ? dates[1].date
+                : null,
+    }
+}
+
+/**
+ *
+ * @param dateRange
+ * @returns
+ */
+export const toDateStringFromDateRange = (dateRange: {
+    start: Date
+    end: Date | null
+}) => {
+    let d = toDatePropsFromDate(dateRange.start, String)
+    const startStr = toDateStringFromDateProps(d) //`${d.year.padStat(4,'0')}-${d.month.padStat(2,'0')}-${d.day.padStat(2,'0')}T${d.hour.padStat(2,'0')}:${d.minute.padStat(2,'0')}`
+    let endStr = ""
+    if (
+        dateRange.end &&
+        dateRange.start.getTime() !== dateRange.end.getTime()
+    ) {
+        d = toDatePropsFromDate(dateRange.end)
+        endStr = `~${toDateStringFromDateProps(d)}` //`~${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
+    }
+    const dateHashtagValue = `${startStr}${endStr}`
+    return dateHashtagValue
 }

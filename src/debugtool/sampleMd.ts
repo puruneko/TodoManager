@@ -14,14 +14,14 @@ export const debugMdTextSimple2 = `｜aaa《AAA》
     - DESCRIPTION(2-1)
     - DESCRIPTION(2-2)
 ## PJ1-2
-- [x] task3 #TAGtask30 #plan:2025-5-12T15:00~2025-5-12T16:00
+- [x] task3 #TAGtask30 #plan:2025-5-12T15:00..2025-5-12T16:00
     - DESCRIPTION(3-1)
     - DESCRIPTION(3-2)
 - [ ] task4 #TAGtask40
     - DESCRIPTION(4-1)
     - DESCRIPTION(4-2)
 # PJ2
-- [ ] task5 #TAGtask50 #plan:2025-5-12T10:00~2025-5-12T11:00 #due:2025-5-14T10:00
+- [ ] task5 #TAGtask50 #plan:2025-5-12T10:00..2025-5-12T11:00 #due:2025-5-14T10:00
     - DESCRIPTION(5-1)
     - DESCRIPTION(5-2)
 `

@@ -1,9 +1,9 @@
+import { T_CEventType, T_MdRange } from "../store/mdPropsStore"
 import {
-    T_CEventType,
-    T_MdRange,
-    toDateStringFromDateProps,
-} from "../store/mdPropsStore"
-import { T_DatetimeRange, getDateProps } from "../utils/datetime"
+    T_DatetimeRange,
+    toDatePropsFromDate,
+    toDateRangeFromDateString,
+} from "../utils/datetime"
 
 export type T_Hashtag = {
     name: string
@@ -114,72 +114,6 @@ export const splitHashtag = (text: string): T_MatchHashtag[] => {
 }
 */
 
-const regstrDateHashtag = new RegExp(
-    "[~]?(\\d{4}-\\d{1,2}-\\d{1,2})([T_](\\d{1,2}(:\\d{1,2}(:\\d{1,2})?)?))?",
-    "g"
-)
-
-/**
- *
- * @param dateHashtagValue
- * @returns
- */
-export const toDateRangeFromDateHashtagValue = (
-    dateHashtagValue: string
-): T_DatetimeRange => {
-    // "2025-4-1T10:00:00~2025-10-11T12"
-    // ---> ['2025-4-1T10:00:00', '2025-4-1', 'T10:00:00', '10:00:00', ':00:00', ':00',]
-    // ---> ['~2025-10-11T12', '2025-10-11', 'T12', '12', undefined, undefined,]
-    const hashtagValue = dateHashtagValue
-    /*
-        .replace("#", "")
-        .replace("scheduled:", "")
-    */
-    const dates = Array.from(hashtagValue.matchAll(regstrDateHashtag), (m) => {
-        const d = {
-            year: Number(m[1].split("-")[0]),
-            month: Number(m[1].split("-")[1]),
-            day: Number(m[1].split("-")[2]),
-            hour: Number(m[2] ? m[2].replace("T", "").split(":")[0] : 0), //'T10:00:00'
-            minute: Number(m[3] ? m[3].split(":")[1] : 0), //'10:00:00'
-        }
-        return {
-            ...d,
-            date: new Date(d.year, d.month - 1, d.day, d.hour, d.minute),
-        }
-    })
-    return {
-        start: dates[0].date,
-        end:
-            dates[1] && !Number.isNaN(dates[1].date.getTime())
-                ? dates[1].date
-                : null,
-    }
-}
-
-/**
- *
- * @param dateRange
- * @returns
- */
-export const toDateHashtagValueFromDateRange = (dateRange: {
-    start: Date
-    end: Date | null
-}) => {
-    let d = getDateProps(dateRange.start, String)
-    const startStr = toDateStringFromDateProps(d) //`${d.year.padStat(4,'0')}-${d.month.padStat(2,'0')}-${d.day.padStat(2,'0')}T${d.hour.padStat(2,'0')}:${d.minute.padStat(2,'0')}`
-    let endStr = ""
-    if (
-        dateRange.end &&
-        dateRange.start.getTime() !== dateRange.end.getTime()
-    ) {
-        d = getDateProps(dateRange.end)
-        endStr = `~${toDateStringFromDateProps(d)}` //`~${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
-    }
-    const dateHashtagValue = `${startStr}${endStr}`
-    return dateHashtagValue
-}
-
 export const updateHashtag = (
     hashtags: T_Hashtag[],
     newHashtag: T_Hashtag | null
@@ -224,7 +158,7 @@ export const filterDateHashtag = (hashtags: T_Hashtag[]): T_DateHashtag[] => {
             }
             return {
                 name: dateHashtagRaw.name,
-                value: toDateRangeFromDateHashtagValue(dateHashtagRaw.value),
+                value: toDateRangeFromDateString(dateHashtagRaw.value),
                 range: dateHashtagRaw.range,
             }
         })

@@ -168,7 +168,7 @@ export const toMdRangeFromCEventId = (cEventid: string): MdRange => {
     }
     return res
 }
-export const getDateProps = (d: Date, typeFunc: any = Number) => {
+export const toDatePropsFromDate = (d: Date, typeFunc: any = Number) => {
     try {
         return {
             year: typeFunc(d.getFullYear()),
@@ -207,7 +207,7 @@ const regstrDateHashtag = new RegExp(
     "[~]?(\\d{4}-\\d{1,2}-\\d{1,2})(T(\\d{1,2}(:\\d{1,2}(:\\d{1,2})?)?))?",
     "g"
 )
-export const toDateRangeFromDateHashtagValue = (dateHashtagValue: string) => {
+export const toDateRangeFromDateString = (dateHashtagValue: string) => {
     // "2025-4-1T10:00:00~2025-10-11T12"
     // ---> ['2025-4-1T10:00:00', '2025-4-1', 'T10:00:00', '10:00:00', ':00:00', ':00',]
     // ---> ['~2025-10-11T12', '2025-10-11', 'T12', '12', undefined, undefined,]
@@ -228,7 +228,7 @@ export const toDateRangeFromDateHashtagValue = (dateHashtagValue: string) => {
         }
     })
     __debugPrint__(
-        "toDateRangeFromDateHashtagValue",
+        "toDateRangeFromDateString",
         dateHashtagValue,
         hashtagValue,
         dates
@@ -241,18 +241,18 @@ export const toDateRangeFromDateHashtagValue = (dateHashtagValue: string) => {
                 : null,
     }
 }
-export const toDateHashtagValueFromDateRange = (dateRange: {
+export const toDateStringFromDateRange = (dateRange: {
     start: Date
     end: Date | null
 }) => {
-    let d = getDateProps(dateRange.start, String)
+    let d = toDatePropsFromDate(dateRange.start, String)
     const startStr = toDateStringFromDateProps(d) //`${d.year.padStat(4,'0')}-${d.month.padStat(2,'0')}-${d.day.padStat(2,'0')}T${d.hour.padStat(2,'0')}:${d.minute.padStat(2,'0')}`
     let endStr = ""
     if (
         dateRange.end &&
         dateRange.start.getTime() !== dateRange.end.getTime()
     ) {
-        d = getDateProps(dateRange.end)
+        d = toDatePropsFromDate(dateRange.end)
         endStr = `~${toDateStringFromDateProps(d)}` //`~${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
     }
     const dateHashtagValue = `${startStr}${endStr}`
@@ -401,7 +401,7 @@ export const mdPropsReducer = (
                               })
                               .join(" ")
                         : ""
-                    const scheduledHashtagValue = toDateHashtagValueFromDateRange({
+                    const scheduledHashtagValue = toDateStringFromDateRange({
                         ...task,
                     })
                     //新規タスクの追加

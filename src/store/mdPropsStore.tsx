@@ -16,13 +16,16 @@ import { dictMap } from "../utils/iterable"
 import { parseMarkdown } from "../texteditor/remarkProcessing"
 import { genLinetext, getTasks } from "../texteditor/mdText2taskHandler"
 import { debugMdTextSimple, debugMdTextSimple2 } from "../debugtool/sampleMd"
-import { toStringFromDateProps, getDateProps } from "../utils/datetime"
+import {
+    toStringFromDateProps,
+    toDatePropsFromDate,
+    toDateStringFromDateRange,
+} from "../utils/datetime"
 import {
     T_DateHashtag,
     filterDateHashtag,
     T_Hashtag,
     isDateHashtag,
-    toDateHashtagValueFromDateRange,
     updateHashtag,
 } from "../texteditor/hashtag"
 import { OnlyIdRequired } from "../utils/types"
@@ -281,14 +284,6 @@ export const toDateHashtagNameFromCEventId = (
     }
     return null
 }
-export const toDateStringFromDateProps = (dateProps: any) => {
-    const d = toStringFromDateProps(dateProps)
-    __debugPrint__("toDateStringFromDateProps", d)
-    if (d) {
-        return `${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`
-    }
-    return ""
-}
 /*
 export const range2indexRange = (text: string, range: Position) => {
     const lines = text.split("\n")
@@ -359,7 +354,7 @@ const toMdTaskIdFromCEventId = (cEventId: string): string => {
 export const genPseudoMdTaskFromCEvent = (cEvent: T_CEvent): T_MdTask => {
     const dateHashtag: T_Hashtag = {
         name: cEvent.type,
-        value: toDateHashtagValueFromDateRange({ ...cEvent }),
+        value: toDateStringFromDateRange({ ...cEvent }),
     }
     const targetHashtagName = toDateHashtagNameFromCEventId(cEvent.id)
     const tags = updateHashtag(
@@ -367,7 +362,7 @@ export const genPseudoMdTaskFromCEvent = (cEvent: T_CEvent): T_MdTask => {
         targetHashtagName
             ? {
                   name: targetHashtagName,
-                  value: toDateHashtagValueFromDateRange({ ...cEvent }),
+                  value: toDateStringFromDateRange({ ...cEvent }),
               }
             : null
     )

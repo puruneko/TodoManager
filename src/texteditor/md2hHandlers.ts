@@ -13,7 +13,7 @@ import {
     Element as HastElement,
     ElementContent,
 } from "hast"
-import { HASHTAG_ALIES } from "./mmExtensionTaggable"
+import { HASHTAG_ALIES } from "./plugin/mmExtensionTaggable"
 
 import type { CustomHashtag as MdastCustomHashtag } from "mdast"
 //

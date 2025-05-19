@@ -17,7 +17,7 @@ import { __debugPrint__impl } from "../debugtool/debugtool"
 import { customComponentsFromHast } from "./h2reactHandler"
 import { md2mdParserPlugin_hashtag } from "./md2mdHandler"
 import { getTasks } from "./mdText2taskHandler"
-import { customTagMMPlugin } from "./mmExtensionTaggable"
+import { customTagMMPlugin } from "./plugin/mmExtensionTaggable"
 
 //
 //

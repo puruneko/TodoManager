@@ -1,4 +1,4 @@
-import { HASHTAG_ALIES } from "./mmExtensionTaggable"
+import { HASHTAG_ALIES } from "./plugin/mmExtensionTaggable"
 
 const ComponentCustomCheckbox = (props) => {
     return (

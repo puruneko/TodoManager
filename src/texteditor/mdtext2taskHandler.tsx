@@ -22,7 +22,7 @@ import {
     getHashtagFromString,
     removeHashtagPrefix,
 } from "./hashtag"
-import { HASHTAG_ALIES } from "./plugin/mmExtensionTaggable"
+import { HASHTAG_ALIES } from "./plugin/hashtag/handler"
 
 //
 //

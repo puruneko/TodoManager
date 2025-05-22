@@ -8,16 +8,12 @@ import remarkGfm from "remark-gfm"
 import remarkRehype from "remark-rehype"
 //import rehypeStringify from "rehype-stringify"
 import rehypeReact from "rehype-react"
-import rehypeStringify from "rehype-stringify"
 //
 
 //
-import { customMdastToHastHandlers } from "./md2hHandlers"
 import { __debugPrint__impl } from "../debugtool/debugtool"
-import { customComponentsFromHast } from "./h2reactHandler"
-import { md2mdParserPlugin_hashtag } from "./md2mdHandler"
-import { getTasks } from "./mdText2taskHandler"
-import { customTagMMPlugin } from "./plugin/mmExtensionTaggable"
+import hashtagPlugin from "./plugin/hashtag"
+import checkboxPlugin from "./plugin/checkbox"
 
 //
 //
@@ -36,22 +32,21 @@ const initializeMdProcessorImpl = () => {
             //parser(text->mdast)
             //
             .use(remarkParse, {
-                //remarkParse, {
                 fragment: true,
-                //extensions: [MMTaggableSyntax()],
-                //mdastExtensions: [MMTaggableSyntax()],
             })
-            //@ts-ignore(問題なし)
             .use(remarkGfm)
-            //@ts-ignore(問題なし)
-            .use(md2mdParserPlugin_hashtag)
-            .use(customTagMMPlugin())
+            //micromark Extension
+            .use(hashtagPlugin.micromarkPlugin())
+            .use(checkboxPlugin.micromarkPlugin())
             //
             //transformer(mdast->hast)
             //
             .use(remarkRehype, {
                 allowDangerousHtml: true,
-                handlers: customMdastToHastHandlers,
+                handlers: {
+                    ...hashtagPlugin.toHastFromMdastPlugin,
+                    ...checkboxPlugin.toHastFromMdastPlugin,
+                },
             })
             //
             //compiler(hast->react or html)
@@ -60,42 +55,16 @@ const initializeMdProcessorImpl = () => {
             .use(rehypeReact, {
                 ...production,
                 Fragment,
-                components: customComponentsFromHast,
+                components: {
+                    ...hashtagPlugin.toReactFromHastPlugin,
+                    ...checkboxPlugin.toReactFromHastPlugin,
+                },
                 createElement,
             })
         //.use(rehypeStringify)
     )
 }
 
-/*
-const initializeMdProcessorImpl_DevHtml = () => {
-    return (
-        unified()
-            //
-            //parser(text->mdast)
-            //
-            .use(remarkParse, {
-                //remarkParse, {
-                fragment: true,
-                //extensions: [MMTaggableSyntax()],
-                //mdastExtensions: [MMTaggableSyntax()],
-            })
-            //@ts-ignore(問題なし)
-            .use(md2mdParserPlugin_hashtag)
-            //@ts-ignore(問題なし)
-            //.use(rubyAttacher)
-            .use(remarkGfm)
-            //
-            //transformer(mdast->hast)
-            //
-            .use(remarkRehype, { handlers: customMdastToHastHandlers })
-            //
-            //compiler(hast->html)
-            //
-            .use(rehypeStringify)
-    )
-}
-*/
 export const initializeMdProcessor = () => {
     mdProcessor = initializeMdProcessorImpl()
     return mdProcessor
@@ -111,22 +80,12 @@ export const parseMarkdown = (mdText: string) => {
     const compiled = mdProcessor.processSync(mdText)
     const reactComponent = compiled.result
     //
-    //debug
-    //
-    /*
-    const htmlProcessor = initializeMdProcessorImpl_DevHtml()
-    const mdastTree_html = htmlProcessor.parse(mdText)
-    const hastTree_html = htmlProcessor.runSync(mdastTree_html)
-    const compiled_html = htmlProcessor.processSync(mdText)
-    const html = compiled_html.value
-    __debugPrint__("parsedHTML", html)
-    */
-    //
     __debugPrint__("parsed", {
         mdastTree,
         hastTree,
         compiled,
         reactComponent,
     })
+    //
     return { mdastTree, hastTree, compiled, reactComponent }
 }

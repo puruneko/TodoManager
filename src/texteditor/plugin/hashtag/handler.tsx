@@ -1,11 +1,12 @@
-//@tds-nocheck
-
 export const HASHTAG_ALIES = "customHashtag"
 
 declare module "mdast" {
     /**
      * Markdown emphasis.
      */
+    export interface CustomHashtagData extends Data {
+        className?: string
+    }
     export interface CustomHashtag extends Node {
         /**
          * Node type of mdast emphasis.
@@ -19,7 +20,7 @@ declare module "mdast" {
         /**
          * Data associated with the mdast emphasis.
          */
-        data?: EmphasisData | undefined
+        data?: CustomHashtagData | undefined
     }
     export interface RootContentMap {
         customHashtag: CustomHashtag
@@ -52,26 +53,34 @@ import {
     TokenizeContext as MMTokenizeContext,
     Resolver as MMResolver,
     Event as MMEvent,
-    State,
-    Effects,
 } from "micromark-util-types"
 import {
     codes as mmCodes,
     constants,
     types as mmTypes,
 } from "micromark-util-symbol"
-import { Plugin } from "unified"
-import { codePointAt } from "../../utils/string"
-import { __debugPrint__ } from "../../debugtool/debugtool"
+import { codePointAt } from "../../../utils/string"
+import { __debugPrint__ } from "../../../debugtool/debugtool"
 import { startOfDay } from "date-fns"
+
+import { Handler as HastHandler } from "mdast-util-to-hast"
+
+import {
+    Literal as HastLiteral,
+    Element as HastElement,
+    ElementContent,
+} from "hast"
 
 ////////////////
 ////////////////
 ////////////////
 
 type T_HashtagSetting = {
+    /**ラベリング。micromarkのパースの識別子。HTMLのクラス名にもなる。 */
     name: string
+    /**ハッシュタグの接頭文字列 */
     prefix: string
+    /** mdast以降のパースでの処理識別子 */
     nodeName: string
 }
 const HASHTAG_SETTINGS: T_HashtagSetting[] = [
@@ -95,7 +104,7 @@ const HASHTAG_SETTINGS: T_HashtagSetting[] = [
 ////////
 ////////
 ////////
-function micromarkExtensionHashtag() {
+export function micromarkExtension() {
     //TODO(TO FIX): prefixの１文字目が被ると後勝ちで上書きされる
     return {
         text: {
@@ -108,10 +117,11 @@ function micromarkExtensionHashtag() {
                     tokenize: tokenizeHashtagFactory(setting),
                     //resolveTo: "text",
                     //resolveAll: false,
-                }
+                } as MMConstruct
                 return dict
             }, {}),
         },
+        flow: {},
     }
     function tokenizeHashtagFactory(setting: T_HashtagSetting) {
         return function tokenizeHashtag(effects, ok, nok) {
@@ -156,8 +166,8 @@ function micromarkExtensionHashtag() {
                 // スペースまたは終了文字でトークン終わり
                 if (
                     code === null ||
-                    code === 32 ||
-                    code === 10 ||
+                    code === mmCodes.space ||
+                    code === mmCodes.lf ||
                     markdownLineEnding(code)
                 ) {
                     effects.exit(setting.name)
@@ -180,7 +190,7 @@ function micromarkExtensionHashtag() {
  * effects.enter/exitの時に呼ばれる
  * @returns
  */
-export function fromMarkdownExtensionHashtag(): FromMarkdownExtension {
+export function fromMarkdownExtension(): FromMarkdownExtension {
     //
     const implStandard = (setting: T_HashtagSetting) => {
         const res: { enter: any; exit: any } = {
@@ -202,6 +212,8 @@ export function fromMarkdownExtensionHashtag(): FromMarkdownExtension {
                 // 付属情報をdataに格納
                 if (node.data?.hProperties) {
                     node.data.hProperties = { className: setting.name }
+                } else {
+                    node.data = { className: setting.name }
                 }
                 //
                 __debugPrint__("tag exit", node, node.value, token)
@@ -231,6 +243,7 @@ export function fromMarkdownExtensionHashtag(): FromMarkdownExtension {
     }
 }
 
+/*
 //function記述形式でthisをPluginにバインド
 export function customTagMMPlugin(): Plugin {
     return function () {
@@ -245,4 +258,48 @@ export function customTagMMPlugin(): Plugin {
         add("micromarkExtensions", micromarkExtensionHashtag())
         add("fromMarkdownExtensions", fromMarkdownExtensionHashtag())
     }
+}*/
+
+////////
+////////
+////////
+
+export const toHastFromMdast: HastHandler = (
+    state,
+    node: MdastCustomHashtag,
+    parent
+): HastElement => {
+    const children: ElementContent[] = [
+        //...state.all(node)
+        {
+            type: "text",
+            value: node.value,
+            position: node.position,
+        },
+    ]
+    __debugPrint__("md2hHandler_hashtag", state, node, children)
+    return {
+        type: "element",
+        tagName: HASHTAG_ALIES,
+        //NOTE:Object型は渡せない
+        properties: {
+            //NOTE:なぜか配列にしないとreact側に渡されない（データは[~~~].join(" ")のような処理で文字列として渡される模様）
+            className: node.data?.className ? [node.data.className] : undefined,
+            dummy: "dummy", //なぜかOK
+            dummy2: ["dummy2", "dummy2(2)"], //"dummy2 dummy2(2)"として渡される
+        },
+        children: children,
+    }
+}
+////////
+////////
+////////
+export const ComponentFromHast = (props) => {
+    return (
+        <span
+            className={`${HASHTAG_ALIES} ${HASHTAG_ALIES}-${props.className}`}
+        >
+            {props.children}
+        </span>
+    )
 }

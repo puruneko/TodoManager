@@ -1,3 +1,4 @@
+//mmExtensionに移行。今は使ってない。
 ////////////////////////////////
 import { visit, Visitor } from "unist-util-visit"
 import { is } from "unist-util-is"

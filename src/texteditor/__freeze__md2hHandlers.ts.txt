@@ -13,9 +13,12 @@ import {
     Element as HastElement,
     ElementContent,
 } from "hast"
-import { HASHTAG_ALIES } from "./plugin/mmExtensionTaggable"
+import { HASHTAG_ALIES } from "./plugin/hashtag/handler"
 
-import type { CustomHashtag as MdastCustomHashtag } from "mdast"
+import type {
+    CustomHashtagData,
+    CustomHashtag as MdastCustomHashtag,
+} from "mdast"
 //
 import { __debugPrint__ } from "../debugtool/debugtool"
 
@@ -168,8 +171,12 @@ const md2hHandler_hashtag: HastHandler = (
     return {
         type: "element",
         tagName: HASHTAG_ALIES,
+        //NOTE:Object型は渡せない
         properties: {
-            //className: ["myhashtag"],
+            //NOTE:なぜか配列にしないとreact側に渡されない（データは[~~~].join(" ")のような処理で文字列として渡される模様）
+            className: node.data?.className ? [node.data.className] : undefined,
+            dummy: "dummy", //なぜかOK
+            dummy2: ["dummy2", "dummy2(2)"], //"dummy2 dummy2(2)"として渡される
         },
         children: children,
     }

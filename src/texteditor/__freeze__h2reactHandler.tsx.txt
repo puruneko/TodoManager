@@ -1,4 +1,4 @@
-import { HASHTAG_ALIES } from "./mmExtensionTaggable"
+import { HASHTAG_ALIES } from "./plugin/hashtag/handler"
 
 const ComponentCustomCheckbox = (props) => {
     return (
@@ -9,7 +9,13 @@ const ComponentCustomCheckbox = (props) => {
     )
 }
 const ComponentCustomHashtag = (props) => {
-    return <span className={HASHTAG_ALIES}>{props.children}</span>
+    return (
+        <span
+            className={`${HASHTAG_ALIES} ${HASHTAG_ALIES}-${props.className}`}
+        >
+            {props.children}
+        </span>
+    )
 }
 
 /**

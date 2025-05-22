@@ -4,7 +4,10 @@ sample2 #tag_2
 `
 export const debugMdTextSimple2 = `｜aaa《AAA》
 
-#sample~tag1 #sample~tag2
+linetext #sharp1~a..a-a~tag1 #sharp2~a..a-a~tag2:valuesample~a..a-a~tag2
+linetext //slashed1~a..a-a~tag1 //slashed2~a..a-a~tag2:valuesample~a..a-a~tag2
+linetext +plus1~a..a-a~tag1 +plus2~a..a-a~tag2:valuesample~a..a-a~tag2
+
 
 # PJ1
 - [ ] task1_*BOLD*_~DELETE~_ #TAGtask10 #TAGtask10_2

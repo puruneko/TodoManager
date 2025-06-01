@@ -1,7 +1,8 @@
 import { format } from "date-fns"
 
-const genDate = (y = 0, M = 0, d = 0, h = 0, m = 0) => {
+const dt = (y = 0, M = 0, d = 0, h = 0, m = 0) => {
     const now = new Date(Date.now())
+    now.setHours(8)
     now.setMinutes(0)
     now.setFullYear(now.getFullYear() + y)
     now.setMonth(now.getMonth() + M)
@@ -11,30 +12,30 @@ const genDate = (y = 0, M = 0, d = 0, h = 0, m = 0) => {
     return `${format(now, "yyyy-MM-dd")}T${format(now, "HH:mm")}`
 }
 const now = () => {
-    return genDate()
+    return dt()
 }
-const y = (y) => {
-    return genDate(y)
-}
-const M = (M) => {
-    return genDate(0, M)
+const ymd = (y, M, d) => {
+    return dt(y, M, d)
 }
 const d = (d) => {
-    return genDate(0, 0, d)
+    return dt(0, 0, d)
 }
-const H = (H) => {
-    return genDate(0, 0, 0, H)
+const dhm = (d, H = 0, m = 0) => {
+    return dt(0, 0, d, H, m)
 }
-const m = (m) => {
-    return genDate(0, 0, 0, 0, m)
+const hm = (H, m = 0) => {
+    return dt(0, 0, 0, H, m)
 }
+
+//
+//
 
 export const debugMdForGantt = `
 for gantt
 
 # PJ planning
-- [ ] マーケット調査 #plan:${now()}~${d(1)}
-- [ ] 検討  #plan:${now()}~${d(1)}
+- [ ] マーケット調査 #plan:${now()}~${1}
+- [ ] 検討  #plan:${now()}~${dhm(1)}
 - [ ] 報告 #plan:${now()}~${d(1)} #due:${d(1)}
 # PJ management
 - [ ] リソース管理 #plan:${d(2)}~${d(3)}
@@ -49,6 +50,9 @@ for gantt
 
 
 `
+
+//
+//
 
 export const debugMdTextSimple = `
 sample1 #tag_1

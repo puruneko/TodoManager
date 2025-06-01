@@ -1,3 +1,55 @@
+import { format } from "date-fns"
+
+const genDate = (y = 0, M = 0, d = 0, h = 0, m = 0) => {
+    const now = new Date(Date.now())
+    now.setMinutes(0)
+    now.setFullYear(now.getFullYear() + y)
+    now.setMonth(now.getMonth() + M)
+    now.setDate(now.getDate() + d)
+    now.setHours(now.getHours() + h)
+    now.setMinutes(now.getMinutes() + m)
+    return `${format(now, "yyyy-MM-dd")}T${format(now, "HH:mm")}`
+}
+const now = () => {
+    return genDate()
+}
+const y = (y) => {
+    return genDate(y)
+}
+const M = (M) => {
+    return genDate(0, M)
+}
+const d = (d) => {
+    return genDate(0, 0, d)
+}
+const H = (H) => {
+    return genDate(0, 0, 0, H)
+}
+const m = (m) => {
+    return genDate(0, 0, 0, 0, m)
+}
+
+export const debugMdForGantt = `
+for gantt
+
+# PJ planning
+- [ ] マーケット調査 #plan:${now()}~${d(1)}
+- [ ] 検討  #plan:${now()}~${d(1)}
+- [ ] 報告 #plan:${now()}~${d(1)} #due:${d(1)}
+# PJ management
+- [ ] リソース管理 #plan:${d(2)}~${d(3)}
+- [ ] チーム管理 #plan:${d(3)}~${d(5)}
+- [ ] 資産管理 #plan:${d(5)}~${d(6)}
+- [ ] 報告 #plan:${d(6)}~${d(7)} #due:${d(7)}
+# dev
+- [ ] 工程１ #plan:${d(8)}~${d(9)}
+- [ ] 工程２ #plan:${d(9)}~${d(14)}
+- [ ] 工程３ #plan:${d(9)}~${d(11)}
+- [ ] 報告 #plan:${d(11)}~${d(15)} #due:${d(15)}
+
+
+`
+
 export const debugMdTextSimple = `
 sample1 #tag_1
 sample2 #tag_2

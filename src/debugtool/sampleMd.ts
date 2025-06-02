@@ -1,3 +1,60 @@
+import { format } from "date-fns"
+
+const dt = (y = 0, M = 0, d = 0, h = 0, m = 0) => {
+    const now = new Date(Date.now())
+    now.setHours(8)
+    now.setMinutes(0)
+    now.setFullYear(now.getFullYear() + y)
+    now.setMonth(now.getMonth() + M)
+    now.setDate(now.getDate() + d)
+    now.setHours(now.getHours() + h)
+    now.setMinutes(now.getMinutes() + m)
+    return `${format(now, "yyyy-MM-dd")}T${format(now, "HH:mm")}`
+}
+const now = () => {
+    return dt()
+}
+const ymd = (y, M, d) => {
+    return dt(y, M, d)
+}
+const d = (d) => {
+    return dt(0, 0, d)
+}
+const dhm = (d, H = 0, m = 0) => {
+    return dt(0, 0, d, H, m)
+}
+const hm = (H, m = 0) => {
+    return dt(0, 0, 0, H, m)
+}
+
+//
+//
+
+export const debugMdForGantt = `
+for gantt
+
+# PJ planning
+- [ ] マーケット調査 #plan:${now()}~${dhm(0, 1)}
+- [ ] 検討  #plan:${now()}~${dhm(0, 1)}
+- [ ] 報告 #plan:${now()}~${dhm(0, 1)} #due:${dhm(0, 1)}
+
+# PJ management
+- [ ] リソース管理 #plan:${dhm(0, 2)}~${dhm(0, 3)}
+- [ ] チーム管理 #plan:${dhm(0, 3)}~${dhm(0, 5)}
+- [ ] 資産管理 #plan:${dhm(0, 5)}~${dhm(0, 6)}
+- [ ] 報告 #plan:${dhm(0, 6)}~${dhm(0, 7)} #due:${dhm(0, 7)}
+# dev
+- [ ] 工程１ #plan:${dhm(0, 8)}~${dhm(0, 9)}
+- [ ] 工程２ #plan:${dhm(0, 9)}~${dhm(0, 14)}
+- [ ] 工程３ #plan:${dhm(0, 9)}~${dhm(0, 11)}
+- [ ] 報告 #plan:${dhm(0, 11)}~${dhm(0, 15)} #due:${dhm(0, 15)}
+
+
+`
+
+//
+//
+
 export const debugMdTextSimple = `
 sample1 #tag_1
 sample2 #tag_2

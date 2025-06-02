@@ -4,6 +4,7 @@ import { useRef } from "react"
 import Calender from "./calendar/calendar"
 import Dashboard from "./dashboard/dashboard"
 import Texteditor from "./texteditor/texteditor"
+import GanttChart from "./gantt/gantt"
 import { UseMdPropsProviderComponent } from "./store/mdPropsStore"
 
 const App = () => {
@@ -15,34 +16,44 @@ const App = () => {
                     <div
                         style={{
                             display: "flex",
-                            flexDirection: "row",
+                            flexDirection: "column",
                         }}
                     >
                         <div
                             style={{
-                                margin: "10px",
-                                flexBasis: "30vw",
+                                display: "flex",
+                                flexDirection: "row",
                             }}
                         >
-                            <Texteditor />
+                            <div
+                                style={{
+                                    margin: "10px",
+                                    flexBasis: "30vw",
+                                }}
+                            >
+                                <Texteditor />
+                            </div>
+                            <div
+                                style={{
+                                    margin: "10px",
+                                    flexBasis: "60vw",
+                                    flexGrow: 1,
+                                }}
+                            >
+                                <Calender />
+                            </div>
+                            <div
+                                style={{
+                                    margin: "10px",
+                                    flexBasis: "10vw",
+                                }}
+                            >
+                                <Dashboard />
+                            </div>
                         </div>
-                        <div
-                            style={{
-                                margin: "10px",
-                                flexBasis: "60vw",
-                                flexGrow: 1,
-                            }}
-                        >
-                            <Calender />
-                        </div>
-                        <div
-                            style={{
-                                margin: "10px",
-                                flexBasis: "10vw",
-                            }}
-                        >
-                            <Dashboard />
-                        </div>
+                    </div>
+                    <div>
+                        <GanttChart />
                     </div>
                 </div>
             </UseMdPropsProviderComponent>

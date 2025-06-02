@@ -27,7 +27,7 @@ import { Point, Position } from "unist"
 import { __debugPrint__impl } from "../debugtool/debugtool"
 import { dictMap } from "../utils/iterable"
 import { parseMarkdown } from "../texteditor/remarkProcessing"
-import { genLinetext, getTasks } from "../texteditor/mdText2taskHandler"
+import { genLinetext, getTasks } from "../texteditor/mdtext2taskHandler"
 import {
     toStringFromDateProps,
     toDatePropsFromDate,

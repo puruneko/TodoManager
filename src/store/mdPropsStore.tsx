@@ -1,3 +1,16 @@
+//
+//
+
+import {
+    debugMdForGantt,
+    debugMdTextSimple,
+    debugMdTextSimple2,
+} from "../debugtool/sampleMd"
+const initialMdtext = debugMdForGantt // ""
+
+//
+//
+
 import {
     createContext,
     Dispatch,
@@ -14,8 +27,7 @@ import { Point, Position } from "unist"
 import { __debugPrint__impl } from "../debugtool/debugtool"
 import { dictMap } from "../utils/iterable"
 import { parseMarkdown } from "../texteditor/remarkProcessing"
-import { genLinetext, getTasks } from "../texteditor/mdText2taskHandler"
-import { debugMdTextSimple, debugMdTextSimple2 } from "../debugtool/sampleMd"
+import { genLinetext, getTasks } from "../texteditor/mdtext2taskHandler"
 import {
     toStringFromDateProps,
     toDatePropsFromDate,
@@ -113,8 +125,6 @@ export type T_MdProps = {
     mdTasks: T_MdTask[]
     cEvents: T_CEvent[]
 }
-
-const initialMdtext = debugMdTextSimple2 // ""
 
 //
 export const genDefaultCEvent = (cEvent?: Partial<T_CEvent>): T_CEvent => {

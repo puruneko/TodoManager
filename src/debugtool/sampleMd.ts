@@ -34,19 +34,20 @@ export const debugMdForGantt = `
 for gantt
 
 # PJ planning
-- [ ] マーケット調査 #plan:${now()}~${1}
-- [ ] 検討  #plan:${now()}~${dhm(1)}
-- [ ] 報告 #plan:${now()}~${d(1)} #due:${d(1)}
+- [ ] マーケット調査 #plan:${now()}~${dhm(0, 1)}
+- [ ] 検討  #plan:${now()}~${dhm(0, 1)}
+- [ ] 報告 #plan:${now()}~${dhm(0, 1)} #due:${dhm(0, 1)}
+
 # PJ management
-- [ ] リソース管理 #plan:${d(2)}~${d(3)}
-- [ ] チーム管理 #plan:${d(3)}~${d(5)}
-- [ ] 資産管理 #plan:${d(5)}~${d(6)}
-- [ ] 報告 #plan:${d(6)}~${d(7)} #due:${d(7)}
+- [ ] リソース管理 #plan:${dhm(0, 2)}~${dhm(0, 3)}
+- [ ] チーム管理 #plan:${dhm(0, 3)}~${dhm(0, 5)}
+- [ ] 資産管理 #plan:${dhm(0, 5)}~${dhm(0, 6)}
+- [ ] 報告 #plan:${dhm(0, 6)}~${dhm(0, 7)} #due:${dhm(0, 7)}
 # dev
-- [ ] 工程１ #plan:${d(8)}~${d(9)}
-- [ ] 工程２ #plan:${d(9)}~${d(14)}
-- [ ] 工程３ #plan:${d(9)}~${d(11)}
-- [ ] 報告 #plan:${d(11)}~${d(15)} #due:${d(15)}
+- [ ] 工程１ #plan:${dhm(0, 8)}~${dhm(0, 9)}
+- [ ] 工程２ #plan:${dhm(0, 9)}~${dhm(0, 14)}
+- [ ] 工程３ #plan:${dhm(0, 9)}~${dhm(0, 11)}
+- [ ] 報告 #plan:${dhm(0, 11)}~${dhm(0, 15)} #due:${dhm(0, 15)}
 
 
 `

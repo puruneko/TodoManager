@@ -4,6 +4,12 @@ function hoursTemplate(a, b) {
     return `${format(a, "HH:mm")} - ${format(b, "HH:mm")}`
 }
 
+export const datetimeShortTemplate = (dt: Date) => {
+    if (dt) {
+        return format(dt, "MM-dd HH:mm")
+    }
+    return ""
+}
 export const datetimeTemplate = (dt: Date) => {
     if (dt) {
         return format(dt, "yyyy-MM-dd HH:mm")
@@ -40,9 +46,105 @@ export const bigScales = [
 
 export const simpleColumns = [
     { id: "text", header: "Task name", flexgrow: 1 },
-    { id: "start", header: "Start Date", template: datetimeTemplate },
-    { id: "end", header: "END!", template: datetimeTemplate },
+    { id: "start", header: "Start", template: datetimeShortTemplate },
+    { id: "end", header: "end", template: datetimeShortTemplate },
 ]
+
+const scales = [
+    { unit: "month", step: 1, format: "yyyy MM" },
+    { unit: "day", step: 1, format: "dd", css: dayStyle },
+]
+
+export const taskTypes = [
+    { id: "task", label: "Task" },
+    { id: "summary", label: "Summary task" },
+    { id: "milestone", label: "Milestone" },
+    { id: "urgent", label: "Urgent" },
+    { id: "narrow", label: "Narrow" },
+    { id: "progress", label: "Progress" },
+    { id: "round", label: "Rounded" },
+]
+
+export function getTypedData() {
+    const t = tasks.map((task, i) => {
+        const res = { ...task }
+        if (res.type === "task" && i % 3) {
+            res.type = taskTypes[(i % 5) + 2].id
+        }
+        return res
+    })
+
+    return { tasks: t, links, scales }
+}
+
+export const zoomConfig = {
+    level: 6,
+    levels: [
+        {
+            minCellWidth: 200,
+            maxCellWidth: 400,
+            scales: [{ unit: "year", step: 1, format: "yyyy" }],
+        },
+        {
+            minCellWidth: 150,
+            maxCellWidth: 400,
+            scales: [
+                { unit: "year", step: 1, format: "yyyy" },
+                { unit: "quarter", step: 1, format: "QQQQ" },
+            ],
+        },
+        {
+            minCellWidth: 250,
+            maxCellWidth: 350,
+            scales: [
+                { unit: "quarter", step: 1, format: "QQQQ" },
+                { unit: "month", step: 1, format: "yyyy MM" },
+            ],
+        },
+        {
+            minCellWidth: 100,
+            scales: [
+                { unit: "month", step: 1, format: "yyyy MM" },
+                { unit: "week", step: 1, format: "'week' w" },
+            ],
+        },
+        {
+            maxCellWidth: 200,
+            scales: [
+                { unit: "month", step: 1, format: "yyyy MM" },
+                { unit: "day", step: 1, format: "dd", css: dayStyle },
+            ],
+        },
+        {
+            minCellWidth: 25,
+            maxCellWidth: 100,
+            scales: [
+                { unit: "day", step: 1, format: "MM dd", css: dayStyle },
+                { unit: "hour", step: 6, format: hoursTemplate },
+            ],
+        },
+        {
+            maxCellWidth: 50,
+            scales: [
+                { unit: "day", step: 1, format: "MM dd", css: dayStyle },
+                { unit: "hour", step: 1, format: "HH:mm" },
+            ],
+        },
+    ],
+}
+
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
 
 const generatedLinks = [
     { id: 1, source: 3, target: 4, type: "e2s" },
@@ -388,87 +490,4 @@ export function getBaselinesData() {
     }))
 
     return { tasks: t, links, scales }
-}
-
-const scales = [
-    { unit: "month", step: 1, format: "yyyy MM" },
-    { unit: "day", step: 1, format: "dd", css: dayStyle },
-]
-
-export const taskTypes = [
-    { id: "task", label: "Task" },
-    { id: "summary", label: "Summary task" },
-    { id: "milestone", label: "Milestone" },
-    { id: "urgent", label: "Urgent" },
-    { id: "narrow", label: "Narrow" },
-    { id: "progress", label: "Progress" },
-    { id: "round", label: "Rounded" },
-]
-
-export function getTypedData() {
-    const t = tasks.map((task, i) => {
-        const res = { ...task }
-        if (res.type === "task" && i % 3) {
-            res.type = taskTypes[(i % 5) + 2].id
-        }
-        return res
-    })
-
-    return { tasks: t, links, scales }
-}
-
-export const zoomConfig = {
-    level: 3,
-    levels: [
-        {
-            minCellWidth: 200,
-            maxCellWidth: 400,
-            scales: [{ unit: "year", step: 1, format: "yyyy" }],
-        },
-        {
-            minCellWidth: 150,
-            maxCellWidth: 400,
-            scales: [
-                { unit: "year", step: 1, format: "yyyy" },
-                { unit: "quarter", step: 1, format: "QQQQ" },
-            ],
-        },
-        {
-            minCellWidth: 250,
-            maxCellWidth: 350,
-            scales: [
-                { unit: "quarter", step: 1, format: "QQQQ" },
-                { unit: "month", step: 1, format: "yyyy MM" },
-            ],
-        },
-        {
-            minCellWidth: 100,
-            scales: [
-                { unit: "month", step: 1, format: "yyyy MM" },
-                { unit: "week", step: 1, format: "'week' w" },
-            ],
-        },
-        {
-            maxCellWidth: 200,
-            scales: [
-                { unit: "month", step: 1, format: "yyyy MM" },
-                { unit: "day", step: 1, format: "dd", css: dayStyle },
-            ],
-        },
-        {
-            minCellWidth: 25,
-            maxCellWidth: 100,
-            scales: [
-                { unit: "day", step: 1, format: "MM dd", css: dayStyle },
-                { unit: "hour", step: 6, format: hoursTemplate },
-            ],
-        },
-        {
-            maxCellWidth: 120,
-            scales: [
-                { unit: "day", step: 1, format: "MM dd", css: dayStyle },
-                { unit: "hour", step: 1, format: "HH:mm" },
-            ],
-        },
-    ],
 }

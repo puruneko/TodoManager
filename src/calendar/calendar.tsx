@@ -432,8 +432,12 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
     //
     //
     return (
-        <div>
-            <h1>CALENDAR</h1>
+        <div
+            style={{
+                height: "100%",
+                overflowX: "scroll",
+            }}
+        >
             <button
                 onClick={() => {
                     icChannel.send("texteditor", "debug", { color: "pink" })
@@ -447,8 +451,8 @@ const SampleCalendar: React.FC<T_SampleCalendarProps> = (props) => {
                     position: "absolute",
                     top: 0,
                     left: 0,
-                    minHeight: "200px",
-                    minWidth: "200px",
+                    //minHeight: "200px",
+                    //minWidth: "200px",
                     zIndex: 2,
                     backgroundColor: "green",
                     border: "1px solid black",

@@ -133,9 +133,9 @@ const SampleTexteditor: React.FC<T_SampleTextareaProps> = (props) => {
                 <MonacoEditor
                     //絶対にroot要素にしない。divで囲む等する。
                     width={"100%"}
-                    height={"30vh"}
+                    height={"50vh"} //[TODO]ベストな値を見つける
                     value={mdProps.mdText}
-                    defaultLanguage="plaintext"
+                    defaultLanguage={"markdown"}
                     options={{
                         wordWrap: "on",
                         minimap: { enabled: false },
@@ -144,6 +144,8 @@ const SampleTexteditor: React.FC<T_SampleTextareaProps> = (props) => {
                             enabled: true,
                             showDropSelector: "afterDrop",
                         },
+                        scrollBeyondLastLine: false,
+                        automaticLayout: true,
                     }}
                     onMount={handleMonacoDidMount}
                     onChange={(value) => {
